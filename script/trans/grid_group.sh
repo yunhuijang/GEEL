@@ -1,0 +1,12 @@
+python trainer/train_trans_generator.py \
+--order C-M \
+--dataset_name GDSS_grid \
+--max_epochs 500 \
+--check_sample_every_n_epoch 20 \
+--replicate 0 \
+--max_len 5436 \
+--wandb_on disabled \
+--string_type group \
+--lr 0.0002 \
+--batch_size 32 \
+--sample_batch_size 50
