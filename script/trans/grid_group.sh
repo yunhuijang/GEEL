@@ -5,8 +5,9 @@ python trainer/train_trans_generator.py \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
 --max_len 5436 \
---wandb_on disabled \
+--wandb_on online \
 --string_type group \
 --lr 0.0002 \
 --batch_size 32 \
---sample_batch_size 50
+--sample_batch_size 50 \
+--num_samples 500
