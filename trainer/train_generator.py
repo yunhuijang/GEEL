@@ -1,14 +1,16 @@
 import argparse
 import torch
-from torch.utils.data import DataLoader
+from joblib import Parallel, delayed
+from tqdm import tqdm
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import wandb
-from networkx import from_numpy_matrix
 import time
+import pickle
 
-from data.dataset import K2TreeDataset, DATASETS
+# from data.dataset import K2TreeDataset, K2StringTreeDataset, DATASETS
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset
 from data.orderings import order_graphs, ORDER_FUNCS
 from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, train_val_test_split, bfs_string_to_tree, adj_to_graph
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
@@ -28,36 +30,23 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         wandb.config['ts'] = self.ts
         
     def setup_datasets(self, hparams):
-        data_name = hparams.dataset_name
-        order = hparams.order
-        
-        # map dataset and split train / test / validation
-        graph_getter, num_rep = DATASETS[data_name]
-        if data_name == 'zinc250k':
-            graphs = graph_getter(zinc_path='resource/zinc.csv')
-        elif data_name == 'peptides':
-            graphs = graph_getter(peptide_path='')
-        else:
-            graphs = graph_getter()
-
-        order_func = ORDER_FUNCS[order]
-        self.train_graphs, self.val_graphs, self.test_graphs = train_val_test_split(graphs)
-        
-        # map order graphs
-        ordered_graphs = []
-        for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]:
-            ordered_graph = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, seed=hparams.replicate)
-            ordered_graphs.append(ordered_graph)
-            
-        train_graphs_ord, val_graphs_ord, test_graphs_ord = ordered_graphs
-        
+        self.string_type = hparams.string_type
         dataset_cls = {
-            "string": K2TreeDataset,
-        }.get(hparams.group)
-        
-        self.total_dataset = dataset_cls([*train_graphs_ord, *test_graphs_ord, *val_graphs_ord], hparams.string_type)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, hparams.string_type) for graphs in ordered_graphs]
-        self.max_depth = self.total_dataset.max_depth
+            "GDSS_grid": GridDataset,
+            "GDSS_ego": EgoDataset,
+            "GDSS_com": ComDataset,
+            "GDSS_enz": EnzDataset,
+            "grid_small": GridSmallDataset
+        }.get(hparams.dataset_name)
+        try:
+            with open(f'resource/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+                self.test_graphs = pickle.load(f)
+        except:
+            with open(f'gcg/resource/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+                self.test_graphs = pickle.load(f)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=(not hparams.tree_pos))
+                                                                   for split in ['train', 'val', 'test']]
+        self.max_depth = hparams.max_depth
 
     def setup_model(self, hparams):
         self.model = LSTMGenerator(
@@ -111,9 +100,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             if self.hparams.string_type == 'dfs':
                 valid_string_list = [string for string in string_list if check_validity(string)]
                 sampled_trees = [dfs_string_to_tree(string) for string in valid_string_list]
-            elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg']:
+            elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group']:
                 valid_string_list = [string for string in string_list if len(string)>0 and len(string)%4 == 0]
-                sampled_trees = [bfs_string_to_tree(string) for string in valid_string_list]
+                sampled_trees = Parallel(n_jobs=8)(delayed(bfs_string_to_tree)(string) 
+                                                   for string in tqdm(valid_string_list, "Sampling: converting string to tree"))
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string
             table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
@@ -121,7 +111,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
             wandb.log({'strings': table})
             valid_sampled_trees = [tree for tree in sampled_trees if tree.depth() <= self.max_depth]
-            sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) for tree in valid_sampled_trees]
+            valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
+            sampled_graphs = Parallel(n_jobs=8)(delayed(adj_to_graph)(tree_to_adj(tree).numpy())
+                                                for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph"))
             save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
             plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
             plot_graphs_list(sampled_graphs, save_dir=plot_dir)
@@ -147,7 +139,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
             self.model.eval()
             with torch.no_grad():
-                if self.hparams.string_type == 'group':
+                if self.hparams.string_type in ['group', 'bfs-deg-group']:
                     sequences = self.model.decode(cur_num_samples, max_len=int(self.hparams.max_len/4), device=self.device)
                 else:
                     sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
