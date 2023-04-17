@@ -3,9 +3,9 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
+from torch.nn.utils.rnn import pad_sequence
 
-from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy
+from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import SmilesGenerator
 from train_generator import BaseGeneratorLightningModule
 from data.dataset import K2TreeDataset
@@ -25,7 +25,9 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             dropout=hparams.dropout,
             max_len=hparams.max_len,
             string_type=hparams.string_type,
-            tree_pos=hparams.tree_pos
+            # tree_pos=hparams.tree_pos,
+            tree_pos=True,
+            pos_type=hparams.pos_type
         )
 
     ### 
@@ -34,7 +36,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             self.train_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=True,
-            collate_fn=K2TreeDataset.collate_fn,
+            collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
             num_workers=self.hparams.num_workers,
         )
         
@@ -43,7 +45,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             self.test_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=False,
-            collate_fn=K2TreeDataset.collate_fn,
+            collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
             num_workers=self.hparams.num_workers,
         )
 
@@ -52,7 +54,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             self.val_dataset,
             batch_size=self.hparams.batch_size,
             shuffle=False,
-            collate_fn=K2TreeDataset.collate_fn,
+            collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
             num_workers=self.hparams.num_workers,
         )
 
@@ -70,8 +72,8 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
         
-        parser.add_argument("--dataset_name", type=str, default="GDSS_ego")
-        parser.add_argument("--batch_size", type=int, default=64)
+        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
+        parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=6)
 
         parser.add_argument("--order", type=str, default="C-M")
@@ -79,9 +81,9 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         #
         parser.add_argument("--emb_size", type=int, default=512)
         parser.add_argument("--dropout", type=int, default=0.1)
-        parser.add_argument("--lr", type=float, default=0.0005)
+        parser.add_argument("--lr", type=float, default=0.001)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
         parser.add_argument("--num_samples", type=int, default=1000)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=500)
@@ -90,7 +92,8 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=272)
-        parser.add_argument("--string_type", type=str, default='bfs-deg')
+        parser.add_argument("--string_type", type=str, default='bfs')
+        parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
@@ -98,6 +101,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dim_feedforward", type=int, default=512)
         parser.add_argument("--input_dropout", type=int, default=0.0)
         parser.add_argument("--tree_pos", action="store_true")
+        parser.add_argument("--pos_type", type=str, default='pad')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
 
         return parser
