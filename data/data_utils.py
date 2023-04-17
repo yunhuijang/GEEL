@@ -127,34 +127,45 @@ def tree_to_adj(tree):
     adj[x_list, y_list] = 1
     
     return adj
-    
+
+def map_starting_point_node(node, tree):
+    # TODO: fix error (None: node update 못하는 것 고치기)
+    print(node)
+    parent = get_parent(node, tree)
+    siblings = get_children_identifier(parent, tree)
+    index = siblings.index(node.identifier)
+    level = get_level(node)
+    tree_depth = tree.depth()
+    k = get_k(tree)
+    matrix_size = k**tree_depth
+    adding_value = int(matrix_size/(k**level))
+    parent_starting_point = parent.data
+    node.data = (parent_starting_point[0]+adding_value*int(index/2), parent_starting_point[1]+adding_value*int(index%2))
+    return node.data
+
 def map_starting_point(tree):
     '''
     map starting points for each elements in tree (to convert adjacency matrix)
     '''
     bfs_list = [tree[node] for node in tree.expand_tree(mode=Tree.WIDTH, 
                                                             key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])),)]
-    for node in bfs_list:
-        if node.is_root():
-            node.data = (0,0)
-        else:
-            parent = get_parent(node, tree)
-            siblings = get_children_identifier(parent, tree)
-            index = siblings.index(node.identifier)
-            level = get_level(node)
-            tree_depth = tree.depth()
-            k = get_k(tree)
-            matrix_size = k**tree_depth
-            adding_value = int(matrix_size/(k**level))
-            parent_starting_point = parent.data
-            if index == 0:
-                node.data = parent_starting_point
-            elif index == 1:
-                node.data = (parent_starting_point[0], parent_starting_point[1]+adding_value)
-            elif index == 2:
-                node.data = (parent_starting_point[0]+adding_value, parent_starting_point[1])
-            else:
-                node.data = (parent_starting_point[0]+adding_value, parent_starting_point[1]+adding_value)
+    bfs_list[0].data = (0,0)
+    # start_time = time()
+    # start_points = Parallel(n_jobs=4, backend='multiprocessing')(delayed(map_starting_point_node)(node, tree) for node in bfs_list[1:])
+    
+    # print(f'elapsed change: {start_time - time()}')
+    
+    for node in bfs_list[1:]:
+        parent = get_parent(node, tree)
+        siblings = get_children_identifier(parent, tree)
+        index = siblings.index(node.identifier)
+        level = get_level(node)
+        tree_depth = tree.depth()
+        k = get_k(tree)
+        matrix_size = k**tree_depth
+        adding_value = int(matrix_size/(k**level))
+        parent_starting_point = parent.data
+        node.data = (parent_starting_point[0]+adding_value*int(index/2), parent_starting_point[1]+adding_value*int(index%2))
             
     return tree
 
@@ -199,13 +210,28 @@ def map_child_deg(node, tree):
     
     return str(child_deg)
 
+def map_all_child_deg(node, tree):
+    '''
+    return sum of all children nodes' degree (tag)
+    '''
+    if node.is_leaf():
+        return str(int(node.tag))
+    
+    children = get_children_identifier(node, tree)
+    child_deg = sum([int(tree[child].tag) for child in children])
+    
+    return str(child_deg)
+
 def tree_to_bfs_string(tree, string_type='bfs'):
     bfs_node_list = [tree[node] for node in tree.expand_tree(mode=tree.WIDTH,
                                                              key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])))][1:]
-    if string_type in ['bfs', 'group']:
+    if string_type in ['bfs', 'group', 'bfs-tri']:
         bfs_value_list = [str(int(node.tag)) for node in bfs_node_list]
-    elif string_type == 'bfs-deg':
+        if string_type == 'bfs-tri':
+            bfs_value_list = [bfs_value_list[i] for i in range(len(bfs_value_list)) if i % 4 !=2]
+    elif string_type in ['bfs-deg', 'bfs-deg-group']:
         bfs_value_list = Parallel(n_jobs=8)(delayed(map_child_deg)(node, tree) for node in bfs_node_list)
+    
     
     return ''.join(bfs_value_list)
 
