@@ -12,7 +12,7 @@ from data.load_data import get_community_small_data, get_ego_small_data, get_gds
 from data.tokens import tokenize
 
 
-DATA_DIR = "resource"
+DATA_DIR = "gcg/resource"
 
 DATASETS = {  # name: (graphs, num_repetitions)
     "GDSS_com": (get_community_small_data, 1),
@@ -67,10 +67,9 @@ class K2TreeDataset(Dataset):
     
     def collate_fn(batch):
         data = []
-        # tree_list = []
         for string in batch:
             data.append(string)
-            # tree_list.append(tree)
+
         return pad_sequence(data, batch_first=True, padding_value=0)
     
 class K2StringTreeDataset(Dataset):
