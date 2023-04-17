@@ -6,5 +6,7 @@ python trainer/train_trans_generator.py \
 --replicate 0 \
 --max_len 272 \
 --wandb_on online \
---string_type group \
---lr 0.01
+--string_type bfs-deg-group \
+--lr 0.0005 \
+--num_samples 1000 \
+--batch_size 128

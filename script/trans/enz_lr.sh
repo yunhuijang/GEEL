@@ -5,24 +5,12 @@ python trainer/train_trans_generator.py \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
 --max_len 1720 \
---wandb_on disabled \
---string_type bfs \
---lr 0.0001 \
---batch_size 16 \
---sample_batch_size 50 \
-;
-python trainer/train_trans_generator.py \
---order C-M \
---dataset_name GDSS_enz \
---max_epochs 500 \
---check_sample_every_n_epoch 20 \
---replicate 0 \
---max_len 1720 \
 --wandb_on online \
 --string_type bfs \
 --lr 0.0005 \
 --batch_size 16 \
---sample_batch_size 50 \
+--sample_batch_size 25 \
+--num_samples 500 \
 ;
 python trainer/train_trans_generator.py \
 --order C-M \
@@ -33,6 +21,7 @@ python trainer/train_trans_generator.py \
 --max_len 1720 \
 --wandb_on online \
 --string_type bfs \
---lr 0.0001 \
+--lr 0.0002 \
 --batch_size 16 \
---sample_batch_size 50 \
+--sample_batch_size 25 \
+--num_samples 500 \

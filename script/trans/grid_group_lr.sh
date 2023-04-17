@@ -7,10 +7,10 @@ python trainer/train_trans_generator.py \
 --max_len 5436 \
 --wandb_on online \
 --string_type group \
---lr 0.0005 \
---batch_size 32 \
+--lr 0.001 \
+--batch_size 8 \
 --sample_batch_size 50 \
---num_samples 500 \
+--num_samples 200 \
 ;
 python trainer/train_trans_generator.py \
 --order C-M \
@@ -21,7 +21,7 @@ python trainer/train_trans_generator.py \
 --max_len 5436 \
 --wandb_on online \
 --string_type group \
---lr 0.0001 \
---batch_size 32 \
+--lr 0.0005 \
+--batch_size 8 \
 --sample_batch_size 50 \
---num_samples 500 \
+--num_samples 200 \
