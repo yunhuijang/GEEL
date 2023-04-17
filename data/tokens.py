@@ -19,7 +19,7 @@ TOKENS_DFS.extend(["(", ")", '0', '1'])
 
 TOKENS_GROUP = standard_tokens.copy()
 group_num_tokens = list(product([0,1], repeat=4))
-TOKENS_GROUP.extend([''.join(str(token)).replace(', ', '')[1:-1] for token in group_num_tokens])
+TOKENS_GROUP.extend([''.join(str(token)).replace(', ', '')[1:-1] for token in group_num_tokens if token!=(0,0,0,0)])
 
 TOKENS_BFS_DEG_GROUP = standard_tokens.copy()
 group_num_tokens = list(product([0,1,2,3,4], repeat=4))

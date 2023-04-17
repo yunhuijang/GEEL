@@ -8,7 +8,8 @@ from collections import deque
 from torch.nn.functional import pad
 from joblib import Parallel, delayed
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id, id_to_token
+
 
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
@@ -17,6 +18,7 @@ class TokenEmbedding(nn.Module):
         super(TokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
+        
 
     def forward(self, tokens):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
@@ -30,6 +32,7 @@ class TreePositionalEncoding(nn.Module):
         self.token2id = token2id
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
+        self.pad = self.token2id[PAD_TOKEN]
         # self.zero = self.token2id['0']
         
     def map_pos_to_tensor(self, pos):
@@ -90,7 +93,6 @@ class TreePositionalEncoding(nn.Module):
         if x.size(1) == 1:
             return x
         pe_list= Parallel(n_jobs=8)(delayed(self.get_pe)(x_string) for x_string in org_x)
-            # [self.get_pe(x_string) for x_string in org_x]
         max_str_length = max([pe.shape[0] for pe in pe_list])
         max_pe_length = max([pe.shape[1] for pe in pe_list])
         # top: bos / bottom: eos
@@ -109,6 +111,49 @@ class TreePositionalEncoding(nn.Module):
         return x
 
 
+class GroupTreePositionalEncoding(TreePositionalEncoding):
+    def __init__(self, d_model, token2id, id2token, pos_type):
+        super().__init__(d_model, token2id, pos_type)
+        self.id2token = id2token
+    
+    def map_string_to_sum(self, raw_string):
+        string = self.id2token[raw_string]
+        return sum([int(char) for char in string])
+    
+    def get_pe(self, row_string):
+        l = self.filter_row_string(row_string)
+        if (len(l) == 0) or (self.pad in l) or (self.bos in l):
+            return torch.zeros((1,1))
+        else:
+            str_queue = deque([self.map_string_to_sum(l[0])])
+            pos_list = [1]
+        
+        pos_queue = deque(pos_list)
+        cur_parent_pos = pos_queue.popleft()
+        tree_index = 1
+        for i in range(1,len(l)):
+            cur_string = l[i]
+            if str_queue[0] == 0:
+                str_queue.popleft()
+                tree_index = 1
+                cur_parent_pos = pos_queue.popleft()
+
+            cur_pos = cur_parent_pos*10+tree_index
+            tree_index += 1
+            pos_list.append(cur_pos)
+            pos_queue.append(cur_pos)
+            str_queue.append(self.map_string_to_sum(cur_string))
+            str_queue[0] -= 1
+            
+        reverse_pos_list = [str(pos)[::-1] for pos in pos_list]
+        tensor_pos_list = [self.map_pos_to_tensor(pos) for pos in reverse_pos_list]
+        max_size = len(tensor_pos_list[-1])
+        final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
+        
+        return torch.stack(final_pos_list)
+            
+        
+
 class SmilesGenerator(nn.Module):
     '''
     without tree information (only string)
@@ -123,17 +168,22 @@ class SmilesGenerator(nn.Module):
         self.nhead = nhead
         self.tokens = TOKENS_DICT[string_type]
         self.TOKEN2ID = token_to_id(self.tokens)
+        self.ID2TOKEN = id_to_token(self.tokens)
         self.string_type = string_type
         self.tree_pos = tree_pos
         self.pos_type = pos_type
         if string_type in ['group', 'bfs-deg-group']:
             self.max_len = int(max_len/4)
+            if self.tree_pos:
+                self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type)
         else:
             self.max_len = max_len
+            if self.tree_pos:
+                self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type)
         #
         self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size)
         self.input_dropout = nn.Dropout(input_dropout)
-        self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type)
+        
         #
         self.distance_embedding_layer = nn.Embedding(max_len + 1, nhead)
 

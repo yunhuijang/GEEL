@@ -92,7 +92,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=272)
-        parser.add_argument("--string_type", type=str, default='bfs')
+        parser.add_argument("--string_type", type=str, default='group')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer

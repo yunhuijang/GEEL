@@ -7,3 +7,4 @@ samples/
 *.log
 *.json
 wandb/
+*.sh
