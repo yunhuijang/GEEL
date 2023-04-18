@@ -33,7 +33,6 @@ class TreePositionalEncoding(nn.Module):
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
         self.pad = self.token2id[PAD_TOKEN]
-        # self.zero = self.token2id['0']
         
     def map_pos_to_tensor(self, pos):
         result = []
@@ -44,7 +43,7 @@ class TreePositionalEncoding(nn.Module):
     
     def filter_row_string(self, row_string):
         # filter bos to eos
-        l = [int(char) for char in [*row_string]]
+        l = row_string.tolist()
         try:
             return l[1:l.index(self.eos)]
         except ValueError:
@@ -55,25 +54,25 @@ class TreePositionalEncoding(nn.Module):
         if len(l) == 0:
             return torch.zeros((1,1))
         elif len(l) > 3:
-            str_queue = deque(l[0:4])
+            string = l[0:4]
             pos_list = [1,2,3,4]
         else:
-            str_queue = deque(l[0:len(l)])
+            string = l[0:len(l)]
             pos_list = list(range(1,len(l)+1))
             
-        pos_queue = deque(pos_list)
+        str_pos_queue = deque([(s, p) for s, p in zip(string, pos_list)])
         for i in np.arange(4,len(l),4):
             cur_string = l[i:i+4]
-            cur_parent = str_queue.popleft()
-            cur_parent_pos = pos_queue.popleft()
-            while((cur_parent == self.token2id['0']) and (len(str_queue) > 0)):
-                cur_parent = str_queue.popleft()
-                cur_parent_pos = pos_queue.popleft()
+            cur_parent, cur_parent_pos = str_pos_queue.popleft()
+            # if value is 0, it cannot be parent node -> skip
+            while((cur_parent == self.token2id['0']) and (len(str_pos_queue) > 0)):
+                cur_parent, cur_parent_pos = str_pos_queue.popleft()
+            # i: order of the child node in the same parent
             cur_pos = [cur_parent_pos*10+i for i in range(1,1+len(cur_string))]
+            # pos_list: final position of each node
             pos_list.extend(cur_pos)
-            pos_queue.extend(cur_pos)
-            str_queue.extend(cur_string)
-
+            str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
+        # map position vector to each position
         reverse_pos_list = [str(pos)[::-1] for pos in pos_list]
         tensor_pos_list = [self.map_pos_to_tensor(pos) for pos in reverse_pos_list]
         max_size = len(tensor_pos_list[-1])
