@@ -7,7 +7,7 @@ python trainer/train_trans_generator.py \
 --max_len 272 \
 --wandb_on online \
 --string_type bfs \
---lr 0.0005 \
+--lr 0.001 \
 --num_samples 1000 \
 --batch_size 128 \
 --tree_pos \
@@ -22,7 +22,7 @@ python trainer/train_trans_generator.py \
 --max_len 272 \
 --wandb_on online \
 --string_type bfs \
---lr 0.0005 \
+--lr 0.001 \
 --num_samples 1000 \
 --batch_size 128 \
 --tree_pos \

@@ -92,15 +92,12 @@ class TreePositionalEncoding(nn.Module):
         # x shape: batch size * sequence len * emb size
         if x.size(1) == 1:
             return x
+        # pe shape: sequence len * pe size
         pe_list= Parallel(n_jobs=8)(delayed(self.get_pe)(x_string) for x_string in org_x)
-        max_str_length = max([pe.shape[0] for pe in pe_list])
+        max_str_length = x.shape[1]
         max_pe_length = max([pe.shape[1] for pe in pe_list])
         # top: bos / bottom: eos
-        pe_tensor = torch.stack([pad(pe, (0, max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0]+1)) for pe in pe_list])
-        # generation (no eos)
-        if pe_tensor.shape[1] != x.shape[1]:
-            pe_tensor = torch.stack([pad(pe, (0, max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0])) for pe in pe_list])
-        
+        pe_tensor = torch.stack([pad(pe, (0, max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0]-1)) for pe in pe_list])
         if self.pos_type == 'pad':
             padder = torch.nn.ReplicationPad2d((0,x.shape[-1]-pe_tensor.shape[-1],0,0))
             pe = padder(pe_tensor.to(float)).to(x.device)
