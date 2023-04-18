@@ -8,7 +8,6 @@ from torch.nn.utils.rnn import pad_sequence
 from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import SmilesGenerator
 from train_generator import BaseGeneratorLightningModule
-from data.dataset import K2TreeDataset
 
 
 class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
@@ -84,7 +83,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--lr", type=float, default=0.001)
         
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
-        parser.add_argument("--num_samples", type=int, default=1000)
+        parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=50)
         parser.add_argument("--max_epochs", type=int, default=500)
         parser.add_argument("--wandb_on", type=str, default='disabled')
@@ -92,7 +91,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=200)
-        parser.add_argument("--string_type", type=str, default='group')
+        parser.add_argument("--string_type", type=str, default='bfs-deg')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer

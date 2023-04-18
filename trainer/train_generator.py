@@ -1,17 +1,14 @@
 import argparse
 import torch
-from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import wandb
-import time
+from time import gmtime, strftime
 import pickle
 
-# from data.dataset import K2TreeDataset, K2StringTreeDataset, DATASETS
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset
-from data.orderings import order_graphs, ORDER_FUNCS
 from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, train_val_test_split, bfs_string_to_tree, adj_to_graph
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -26,7 +23,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.setup_datasets(hparams)
         self.setup_model(hparams)
-        self.ts = time.strftime('%b%d-%H:%M:%S', time.gmtime())
+        self.ts = strftime('%b%d-%H:%M:%S', gmtime())
         wandb.config['ts'] = self.ts
         
     def setup_datasets(self, hparams):
@@ -102,8 +99,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 sampled_trees = [dfs_string_to_tree(string) for string in valid_string_list]
             elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group']:
                 valid_string_list = [string for string in string_list if len(string)>0 and len(string)%4 == 0]
-                sampled_trees = Parallel(n_jobs=8)(delayed(bfs_string_to_tree)(string) 
-                                                   for string in tqdm(valid_string_list, "Sampling: converting string to tree"))
+                sampled_trees = [bfs_string_to_tree(string) 
+                                for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
+                
+                
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string
             table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
@@ -112,8 +111,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             wandb.log({'strings': table})
             valid_sampled_trees = [tree for tree in sampled_trees if tree.depth() <= self.max_depth]
             valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-            sampled_graphs = Parallel(n_jobs=8)(delayed(adj_to_graph)(tree_to_adj(tree).numpy())
-                                                for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph"))
+            sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
+                              for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
             save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
             plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
             plot_graphs_list(sampled_graphs, save_dir=plot_dir)

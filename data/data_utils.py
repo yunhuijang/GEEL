@@ -231,7 +231,7 @@ def tree_to_bfs_string(tree, string_type='bfs'):
             bfs_value_list = [bfs_value_list[i] for i in range(len(bfs_value_list)) if i % 4 !=2]
     elif string_type in ['bfs-deg', 'bfs-deg-group']:
         bfs_value_list = Parallel(n_jobs=8)(delayed(map_child_deg)(node, tree) for node in bfs_node_list)
-    
+
     
     return ''.join(bfs_value_list)
 

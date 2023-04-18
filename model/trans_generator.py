@@ -6,7 +6,9 @@ from tqdm import tqdm
 import numpy as np
 from collections import deque
 from torch.nn.functional import pad
-from joblib import Parallel, delayed
+import math
+from torch.nn.utils.rnn import pad_sequence
+from time import time
 
 from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id, id_to_token
 
@@ -24,7 +26,7 @@ class TokenEmbedding(nn.Module):
         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 class TreePositionalEncoding(nn.Module):
-    def __init__(self, d_model, token2id, pos_type):
+    def __init__(self, d_model, token2id, pos_type, max_len):
         super().__init__()
         self.d_model = d_model
         self.pos_type = pos_type
@@ -33,6 +35,10 @@ class TreePositionalEncoding(nn.Module):
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
         self.pad = self.token2id[PAD_TOKEN]
+        self.max_pe_length = int(math.log(max_len, 4)+5)*4
+        self.positional_embedding = nn.Linear(self.max_pe_length, self.d_model)
+        self.padder = torch.nn.ReplicationPad2d((0,self.d_model-self.max_pe_length,0,0))
+        
         
     def map_pos_to_tensor(self, pos):
         result = []
@@ -80,36 +86,31 @@ class TreePositionalEncoding(nn.Module):
         
         # return shape: sequence len * pe size
         return torch.stack(final_pos_list)
-        
     
-    def positional_embedding(self, x, pe_size, emb_size):
-        embedding = nn.Linear(pe_size, emb_size)
-        return embedding(x.float()) * math.sqrt(emb_size)
-    
+    def pe(self, pe_tensor, emb_size):
+        return self.positional_embedding(pe_tensor) * math.sqrt(emb_size)
     
     def forward(self, x, org_x):
         # x shape: batch size * sequence len * emb size
         if x.size(1) == 1:
             return x
         # pe shape: sequence len * pe size
-        pe_list= Parallel(n_jobs=8)(delayed(self.get_pe)(x_string) for x_string in org_x)
+        pe_list = [self.get_pe(x_string) for x_string in org_x]
         max_str_length = x.shape[1]
-        max_pe_length = max([pe.shape[1] for pe in pe_list])
-        # top: bos / bottom: eos
-        pe_tensor = torch.stack([pad(pe, (0, max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0]-1)) for pe in pe_list])
+        pe_tensor = torch.stack([pad(pe, (0,self.max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0]-1)) 
+                                 for pe in pe_list]).to(x.device).float()
         if self.pos_type == 'pad':
-            padder = torch.nn.ReplicationPad2d((0,x.shape[-1]-pe_tensor.shape[-1],0,0))
-            pe = padder(pe_tensor.to(float)).to(x.device)
+            pe = self.padder(pe_tensor).to(x.device)
         elif self.pos_type == 'emb':
-            pe = self.positional_embedding(pe_tensor, max_pe_length, self.d_model).to(x.device)
+            pe = self.pe(pe_tensor, self.d_model)
         
         x += pe
         return x
 
 
 class GroupTreePositionalEncoding(TreePositionalEncoding):
-    def __init__(self, d_model, token2id, id2token, pos_type):
-        super().__init__(d_model, token2id, pos_type)
+    def __init__(self, d_model, token2id, id2token, pos_type, max_len):
+        super().__init__(d_model, token2id, pos_type, max_len)
         self.id2token = id2token
     
     def map_string_to_sum(self, raw_string):
@@ -171,11 +172,11 @@ class SmilesGenerator(nn.Module):
         if string_type in ['group', 'bfs-deg-group']:
             self.max_len = int(max_len/4)
             if self.tree_pos:
-                self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type)
+                self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type, self.max_len)
         else:
             self.max_len = max_len
             if self.tree_pos:
-                self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type)
+                self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type, self.max_len)
         #
         self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size)
         self.input_dropout = nn.Dropout(input_dropout)
@@ -192,8 +193,6 @@ class SmilesGenerator(nn.Module):
         self.generator = nn.Linear(emb_size, len(self.tokens))
 
     def forward(self, sequences):
-        
-        sequences = sequences
         
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
