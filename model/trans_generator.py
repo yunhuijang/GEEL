@@ -22,14 +22,16 @@ class TokenEmbedding(nn.Module):
         self.emb_size = emb_size
         self.learn_pos = learn_pos
         # max_len+2: for eos / bos token
-        self.positional_embedding = nn.Parameter(torch.randn([batch_size, max_len+2, emb_size]))
+        self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
         
     def forward(self, tokens):
         x = self.embedding(tokens.long()) * math.sqrt(self.emb_size)
         x_batch_size = x.shape[0]
         x_seq_len = x.shape[1]
         if self.learn_pos:
-            return x+self.positional_embedding[:x_batch_size, :x_seq_len]
+            pe = self.positional_embedding[:,:x_seq_len]
+            pe_stack = torch.tile(pe, (x_batch_size, 1, 1))
+            return x+pe_stack
         return x
 
 class TreePositionalEncoding(nn.Module):
@@ -156,13 +158,6 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
         
         return torch.stack(final_pos_list)
         
-# class LearnablePositionalEncoding(nn.Module):
-#     def __init__(self):
-#         self.pe = nn.Parameter(torch.randn())
-        
-#     def forward(self, x):
-#         x += self.pe
-#         return x
 
 class SmilesGenerator(nn.Module):
     '''
