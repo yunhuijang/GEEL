@@ -8,4 +8,4 @@ python trainer/train_trans_generator.py \
 --wandb_on online \
 --string_type bfs-deg-group \
 --num_samples 1000 \
---lr 0.0002
+--lr 0.0001

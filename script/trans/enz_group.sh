@@ -6,12 +6,10 @@ python trainer/train_trans_generator.py \
 --replicate 0 \
 --max_len 1720 \
 --wandb_on online \
---string_type group \
---lr 0.0002 \
+--string_type bfs-deg-group \
+--lr 0.002 \
 --batch_size 32 \
 --sample_batch_size 50 \
---tree_pos \
---pos_type emb \
 ;
 python trainer/train_trans_generator.py \
 --order C-M \
@@ -21,9 +19,7 @@ python trainer/train_trans_generator.py \
 --replicate 0 \
 --max_len 1720 \
 --wandb_on online \
---string_type group \
---lr 0.0002 \
+--string_type bfs-deg-group \
+--lr 0.001 \
 --batch_size 32 \
---sample_batch_size 50 \
---tree_pos \
---pos_type pad
+--sample_batch_size 50
