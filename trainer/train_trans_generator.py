@@ -24,9 +24,12 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             dropout=hparams.dropout,
             max_len=hparams.max_len,
             string_type=hparams.string_type,
-            # tree_pos=hparams.tree_pos,
-            tree_pos=True,
-            pos_type=hparams.pos_type
+            tree_pos=hparams.tree_pos,
+            # tree_pos=True,
+            pos_type=hparams.pos_type,
+            learn_pos=hparams.learn_pos,
+            # learn_pos=True,
+            batch_size=max(hparams.batch_size, hparams.sample_batch_size)
         )
 
     ### 
@@ -90,7 +93,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
-        parser.add_argument("--max_len", type=int, default=200)
+        parser.add_argument("--max_len", type=int, default=304)
         parser.add_argument("--string_type", type=str, default='bfs-deg')
         parser.add_argument("--max_depth", type=int, default=20)
         
@@ -102,6 +105,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--tree_pos", action="store_true")
         parser.add_argument("--pos_type", type=str, default='pad')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
+        parser.add_argument("--learn_pos", action="store_true")
 
         return parser
 

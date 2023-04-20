@@ -16,14 +16,21 @@ from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_i
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size):
+    def __init__(self, vocab_size, emb_size, learn_pos, batch_size, max_len):
         super(TokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
+        self.learn_pos = learn_pos
+        # max_len+2: for eos / bos token
+        self.positional_embedding = nn.Parameter(torch.randn([batch_size, max_len+2, emb_size]))
         
-
     def forward(self, tokens):
-        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+        x = self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+        x_batch_size = x.shape[0]
+        x_seq_len = x.shape[1]
+        if self.learn_pos:
+            return x+self.positional_embedding[:x_batch_size, :x_seq_len]
+        return x
 
 class TreePositionalEncoding(nn.Module):
     def __init__(self, d_model, token2id, pos_type, max_len):
@@ -148,8 +155,14 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
         final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
         
         return torch.stack(final_pos_list)
-            
         
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self):
+#         self.pe = nn.Parameter(torch.randn())
+        
+#     def forward(self, x):
+#         x += self.pe
+#         return x
 
 class SmilesGenerator(nn.Module):
     '''
@@ -159,7 +172,7 @@ class SmilesGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, tree_pos, pos_type
+        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos, batch_size
     ):
         super(SmilesGenerator, self).__init__()
         self.nhead = nhead
@@ -169,6 +182,9 @@ class SmilesGenerator(nn.Module):
         self.string_type = string_type
         self.tree_pos = tree_pos
         self.pos_type = pos_type
+        self.learn_pos = learn_pos
+        self.batch_size = batch_size
+        
         if string_type in ['group', 'bfs-deg-group']:
             self.max_len = int(max_len/4)
             if self.tree_pos:
@@ -178,7 +194,7 @@ class SmilesGenerator(nn.Module):
             if self.tree_pos:
                 self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type, self.max_len)
         #
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.batch_size, self.max_len)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #
