@@ -45,18 +45,15 @@ class TreePositionalEncoding(nn.Module):
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
         self.pad = self.token2id[PAD_TOKEN]
-        self.max_pe_length = int(math.log(max_len, 4)+5)*4
+        if 'group' in self.pos_type:
+            self.max_pe_length = int(math.log(max_len, 4)+5)
+        else:
+            self.max_pe_length = int(math.log(max_len, 4)+5)*4
         self.positional_embedding = nn.Linear(self.max_pe_length, self.d_model)
         self.padder = torch.nn.ReplicationPad2d((0,self.d_model-self.max_pe_length,0,0))
+        is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True}
+        self.is_group = is_group_dict[self.pos_type]
         
-        
-    def map_pos_to_tensor(self, pos):
-        result = []
-        for char in pos:
-            result.extend(self.pos_dict[char])
-            
-        return torch.tensor(result)
-    
     def filter_row_string(self, row_string):
         # filter bos to eos
         l = row_string.tolist()
@@ -100,18 +97,39 @@ class TreePositionalEncoding(nn.Module):
     def pe(self, pe_tensor, emb_size):
         return self.positional_embedding(pe_tensor) * math.sqrt(emb_size)
     
+    def map_pos_to_tensor(self, pos):
+        result = []
+        for char in pos:
+            result.extend(self.pos_dict[char])
+            
+        return torch.tensor(result)
+    
+    def map_pos_to_tensor_group(self, pos):
+        return torch.tensor([eval(p) for p in pos])
+    
+    def finalize_pe(self, pos_list, is_group):
+        if is_group:
+            int_pos_list = [list(str(pos)) for pos in pos_list]
+            tensor_pos_list = [self.map_pos_to_tensor_group(pos) for pos in int_pos_list]
+        else:
+            tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
+        max_size = len(tensor_pos_list[-1])
+        final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
+        return torch.stack(final_pos_list)
+    
     def forward(self, x, org_x):
         # x shape: batch size * sequence len * emb size
         if x.size(1) == 1:
             return x
         # pe shape: sequence len * pe size
-        pe_list = [self.get_pe(x_string) for x_string in org_x]
+        pos_lists = [self.get_pe(x_string) for x_string in org_x]
+        pe_list = [self.finalize_pe(pos_list, is_group=self.is_group) for pos_list in pos_lists]
         max_str_length = x.shape[1]
         pe_tensor = torch.stack([pad(pe, (0,self.max_pe_length-pe.shape[1],1,max_str_length-pe.shape[0]-1)) 
-                                 for pe in pe_list]).to(x.device).float()
-        if self.pos_type == 'pad':
+                                for pe in pe_list]).to(x.device).float()
+        if 'pad' in self.pos_type:
             pe = self.padder(pe_tensor).to(x.device)
-        elif self.pos_type == 'emb':
+        elif 'emb' in self.pos_type:
             pe = self.pe(pe_tensor, self.d_model)
         
         x += pe
@@ -125,13 +143,11 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
     
     def map_string_to_sum(self, raw_string):
         string = self.id2token[raw_string]
-        result = [char.start()+1 for char in re.finditer(r'(0|1|2|3|4)', string)]
+        result = [char.start()+1 for char in re.finditer(r'(1|2|3|4)', string)]
         result.append(0)
         return result
-        # return sum([int(char) for char in string])
     
     def get_pe(self, row_string):
-        # TODO: Fix error (community / ego)
         l = self.filter_row_string(row_string)
         if (len(l) == 0) or (self.pad in l) or (self.bos in l):
             return torch.zeros((1,1))
@@ -153,13 +169,16 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
             pos_list.append(cur_pos)
             pos_queue.append(cur_pos)
             str_queue.extend(self.map_string_to_sum(cur_string))
-                
+        
+        return pos_list
         tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
         max_size = len(tensor_pos_list[-1])
         final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
         
         return torch.stack(final_pos_list)
     
+
+
 
 class SmilesGenerator(nn.Module):
     '''
