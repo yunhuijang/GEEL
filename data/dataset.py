@@ -5,8 +5,9 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import pickle
 import os
+from collections import deque
 
-from data.data_utils import adj_to_k2_tree, tree_to_dfs_string, tree_to_bfs_string, map_tree_pe
+from data.data_utils import grouper
 from data.load_data import get_community_small_data, get_ego_small_data, get_gdss_enzymes_data,  \
     get_gdss_grid_data, get_grid_small_data, get_caveman_data
 from data.tokens import tokenize
@@ -110,12 +111,29 @@ class EgoDataset(Dataset):
         string_path = os.path.join(self.raw_dir, f"{self.data_name}_str_{split}.pkl")
         with open(string_path, 'rb') as f:
             self.strings = pickle.load(f)
+            if self.string_type in ['bfs-deg', 'bfs-deg-group']:
+                self.strings = [self.map_deg_string(string) for string in self.strings]
         
     def __len__(self):
         return len(self.strings)
     
     def __getitem__(self, idx: int):
         return torch.LongTensor(tokenize(self.strings[idx], self.string_type))
+    
+    def map_deg_string(self, string):
+        new_string = []
+        group_queue = deque(grouper(4, string))
+        group_queue.popleft()
+        for index, char in enumerate(string):
+            if len(group_queue) == 0:
+                left = string[index:]
+                break
+            if char == '0':
+                new_string.append(char)
+            else:
+                new_string.append(str(sum([int(char) for char in group_queue.popleft()])))
+                
+        return ''.join(new_string) + left
     
 class ComDataset(EgoDataset):
     data_name = 'community_small'
