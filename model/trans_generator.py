@@ -40,7 +40,7 @@ class TreePositionalEncoding(nn.Module):
         super().__init__()
         self.d_model = d_model
         self.pos_type = pos_type
-        self.pos_dict = {'1': (1,0,0,0), '2': (0,1,0,0), '3': (0,0,1,0), '4': (0,0,0,1)}
+        self.pos_dict = {'0': (0,0,0,0), '1': (1,0,0,0), '2': (0,1,0,0), '3': (0,0,1,0), '4': (0,0,0,1)}
         self.token2id = token2id
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
@@ -109,7 +109,10 @@ class TreePositionalEncoding(nn.Module):
     
     def finalize_pe(self, pos_list, is_group):
         if is_group:
-            int_pos_list = [list(str(pos)) for pos in pos_list]
+            if torch.is_tensor(pos_list):
+                int_pos_list = [['0']]
+            else:
+                int_pos_list = [list(str(pos)) for pos in pos_list]
             tensor_pos_list = [self.map_pos_to_tensor_group(pos) for pos in int_pos_list]
         else:
             tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
