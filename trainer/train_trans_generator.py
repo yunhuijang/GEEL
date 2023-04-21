@@ -27,9 +27,8 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
             tree_pos=hparams.tree_pos,
             # tree_pos=True,
             pos_type=hparams.pos_type,
-            learn_pos=hparams.learn_pos,
-            # learn_pos=True,
-            batch_size=max(hparams.batch_size, hparams.sample_batch_size)
+            learn_pos=hparams.learn_pos
+            # learn_pos=True
         )
 
     ### 
@@ -74,7 +73,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
         
-        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
+        parser.add_argument("--dataset_name", type=str, default="GDSS_ego")
         parser.add_argument("--batch_size", type=int, default=32)
         parser.add_argument("--num_workers", type=int, default=6)
 
@@ -94,7 +93,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=304)
-        parser.add_argument("--string_type", type=str, default='bfs-deg')
+        parser.add_argument("--string_type", type=str, default='bfs-deg-group')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer
