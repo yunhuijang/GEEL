@@ -9,6 +9,7 @@ from torch.nn.functional import pad
 import math
 from torch.nn.utils.rnn import pad_sequence
 from time import time
+import re
 
 from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id, id_to_token
 
@@ -16,7 +17,7 @@ from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_i
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size, learn_pos, batch_size, max_len):
+    def __init__(self, vocab_size, emb_size, learn_pos, max_len):
         super(TokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
@@ -124,40 +125,41 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
     
     def map_string_to_sum(self, raw_string):
         string = self.id2token[raw_string]
-        return sum([int(char) for char in string])
+        result = [char.start()+1 for char in re.finditer(r'(0|1|2|3|4)', string)]
+        result.append(0)
+        return result
+        # return sum([int(char) for char in string])
     
     def get_pe(self, row_string):
+        # TODO: Fix error (community / ego)
         l = self.filter_row_string(row_string)
         if (len(l) == 0) or (self.pad in l) or (self.bos in l):
             return torch.zeros((1,1))
         else:
-            str_queue = deque([self.map_string_to_sum(l[0])])
+            str_queue = deque(self.map_string_to_sum(l[0]))
             pos_list = [1]
         
         pos_queue = deque(pos_list)
         cur_parent_pos = pos_queue.popleft()
-        tree_index = 1
+        
         for i in range(1,len(l)):
+            tree_index = str_queue.popleft()
             cur_string = l[i]
-            if str_queue[0] == 0:
-                str_queue.popleft()
-                tree_index = 1
+            if tree_index == 0:
+                tree_index = str_queue.popleft()
                 cur_parent_pos = pos_queue.popleft()
-
+            
             cur_pos = cur_parent_pos*10+tree_index
-            tree_index += 1
             pos_list.append(cur_pos)
             pos_queue.append(cur_pos)
-            str_queue.append(self.map_string_to_sum(cur_string))
-            str_queue[0] -= 1
-            
-        reverse_pos_list = [str(pos)[::-1] for pos in pos_list]
-        tensor_pos_list = [self.map_pos_to_tensor(pos) for pos in reverse_pos_list]
+            str_queue.extend(self.map_string_to_sum(cur_string))
+                
+        tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
         max_size = len(tensor_pos_list[-1])
         final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
         
         return torch.stack(final_pos_list)
-        
+    
 
 class SmilesGenerator(nn.Module):
     '''
@@ -167,7 +169,7 @@ class SmilesGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos, batch_size
+        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos
     ):
         super(SmilesGenerator, self).__init__()
         self.nhead = nhead
@@ -178,7 +180,6 @@ class SmilesGenerator(nn.Module):
         self.tree_pos = tree_pos
         self.pos_type = pos_type
         self.learn_pos = learn_pos
-        self.batch_size = batch_size
         
         if string_type in ['group', 'bfs-deg-group']:
             self.max_len = int(max_len/4)
@@ -189,7 +190,7 @@ class SmilesGenerator(nn.Module):
             if self.tree_pos:
                 self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type, self.max_len)
         #
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.batch_size, self.max_len)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #
