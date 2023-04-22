@@ -109,10 +109,7 @@ class TreePositionalEncoding(nn.Module):
     
     def finalize_pe(self, pos_list, is_group):
         if is_group:
-            if torch.is_tensor(pos_list):
-                int_pos_list = [['0']]
-            else:
-                int_pos_list = [list(str(pos)) for pos in pos_list]
+            int_pos_list = [list(str(pos)) for pos in pos_list]
             tensor_pos_list = [self.map_pos_to_tensor_group(pos) for pos in int_pos_list]
         else:
             tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
@@ -153,7 +150,7 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
     def get_pe(self, row_string):
         l = self.filter_row_string(row_string)
         if (len(l) == 0) or (self.pad in l) or (self.bos in l):
-            return torch.zeros((1,1))
+            return [0]
         else:
             str_queue = deque(self.map_string_to_sum(l[0]))
             pos_list = [1]
@@ -165,6 +162,8 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
             tree_index = str_queue.popleft()
             cur_string = l[i]
             if tree_index == 0:
+                if len(str_queue) == 0:
+                    break
                 tree_index = str_queue.popleft()
                 cur_parent_pos = pos_queue.popleft()
             
@@ -174,11 +173,6 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
             str_queue.extend(self.map_string_to_sum(cur_string))
         
         return pos_list
-        tensor_pos_list = [self.map_pos_to_tensor(str(pos)) for pos in pos_list]
-        max_size = len(tensor_pos_list[-1])
-        final_pos_list = [pad(pos, (0,max_size-len(pos))) for pos in tensor_pos_list]
-        
-        return torch.stack(final_pos_list)
     
 
 
