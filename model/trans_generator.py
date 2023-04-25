@@ -51,7 +51,8 @@ class TreePositionalEncoding(nn.Module):
             self.max_pe_length = int(math.log(max_len, 4)+5)*4
         self.positional_embedding = nn.Linear(self.max_pe_length, self.d_model)
         self.padder = torch.nn.ReplicationPad2d((0,self.d_model-self.max_pe_length,0,0))
-        is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True}
+        is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True,
+                         'qm9': True, 'zinc': True}
         self.is_group = is_group_dict[self.pos_type]
         
     def filter_row_string(self, row_string):

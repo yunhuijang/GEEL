@@ -157,7 +157,7 @@ class OrderedGraph:
 def order_graphs(
     graphs: list,
     order_func,
-    num_repetitions: int = 1, seed: int = 0
+    num_repetitions: int = 1, seed: int = 0, is_mol=False
 ):
     ordered_graphs = []
     for i, graph in enumerate(graphs):
@@ -165,7 +165,8 @@ def order_graphs(
             # seed = i * (j + 1) + j
             random.seed(seed)
             np.random.seed(seed)
-            graph.remove_edges_from(nx.selfloop_edges(graph))
+            if not is_mol:
+                graph.remove_edges_from(nx.selfloop_edges(graph))
             graph = nx.convert_node_labels_to_integers(graph)
             order, bw = order_func(graph, seed)
             ordered_graphs.append(OrderedGraph(

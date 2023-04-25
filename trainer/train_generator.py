@@ -7,14 +7,18 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from time import gmtime, strftime
 import pickle
+import os
+from moses.metrics.metrics import get_all_metrics
 
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset
-from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, train_val_test_split, bfs_string_to_tree, adj_to_graph, check_tree_validity
+from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity
+from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
 from data.tokens import untokenize
 
+directory = 'resource'
 
 class BaseGeneratorLightningModule(pl.LightningModule):
     def __init__(self, hparams):
@@ -37,11 +41,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'qm9': QM9Dataset,
             'zinc': ZINCDataset
         }.get(hparams.dataset_name)
-        try:
-            with open(f'resource/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
-                self.test_graphs = pickle.load(f)
-        except:
-            with open(f'gcg/resource/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+        if hparams.dataset_name in ['qm9', 'zinc']:
+            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+                self.train_smiles = f.readlines()
+            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+                self.test_smiles = f.readlines()
+            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
                 self.test_graphs = pickle.load(f)
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=(not hparams.tree_pos))
                                                                    for split in ['train', 'val', 'test']]
@@ -99,9 +104,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             if self.hparams.string_type == 'dfs':
                 valid_string_list = [string for string in string_list if check_validity(string)]
                 sampled_trees = [dfs_string_to_tree(string) for string in valid_string_list]
-            elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group']:
+            elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group', 'qm9', 'zinc']:
                 valid_string_list = [string for string in string_list if len(string)>0 and len(string)%4 == 0]
-                sampled_trees = [bfs_string_to_tree(string) 
+                is_zinc = False
+                if self.hparams.string_type == 'zinc':
+                    is_zinc = True
+                sampled_trees = [bfs_string_to_tree(string, is_zinc) 
                                 for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
                 
                 
@@ -112,22 +120,45 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
             wandb.log({'strings': table})
             valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
-            wandb.log({"tree-validity": len(valid_sampled_trees) / len(sampled_trees)})
-            valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-            sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
-                              for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
-            save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
-            plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
-            plot_graphs_list(sampled_graphs, save_dir=plot_dir)
-            wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
-
-            # GDSS evaluation
-            methods, kernels = load_eval_settings('')
-            if len(sampled_graphs) == 0:
-                mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
+            if self.hparams.string_type in ['zinc', 'qm9']:
+                # valid_sampled_trees = sampled_trees[:len(self.test_graphs)]
+                adjs = [tree_to_adj(tree).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into adj")]
+                valid_adjs = [valid_adj for valid_adj in [check_adj_validity_mol(adj) for adj in adjs] if valid_adj is not None]
+                mols_no_correct = [adj_to_graph_mol(adj) for adj in valid_adjs]
+                mols_no_correct = [elem for elem in mols_no_correct if elem[0] is not None]
+                mols = [elem[0] for elem in mols_no_correct]
+                no_corrects = [elem[1] for elem in mols_no_correct]
+                num_mols = len(mols)
+                gen_smiles = mols_to_smiles(mols)
+                gen_smiles = [smi for smi in gen_smiles if len(smi)]
+                save_dir = f'{self.hparams.dataset_name}/{self.ts}'
+                with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
+                    for smiles in gen_smiles:
+                        f.write(f'{smiles}\n')
+                scores = get_all_metrics(gen=gen_smiles, device=self.device, n_jobs=8, test=self.test_smiles, train=self.train_smiles, k=len(gen_smiles))
+                scores_nspdk = eval_graph_list(self.test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
+                metrics_dict = scores
+                metrics_dict['NSPDK'] = scores_nspdk
+                metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
+                wandb.log(metrics_dict)
             else:
-                mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
-            wandb.log(mmd_results)
+                
+                valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
+                sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
+                                for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
+                wandb.log({"tree-validity": len(valid_sampled_trees) / len(sampled_trees)})
+                save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
+                plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
+                plot_graphs_list(sampled_graphs, save_dir=plot_dir)
+                wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
+
+                # GDSS evaluation
+                methods, kernels = load_eval_settings('')
+                if len(sampled_graphs) == 0:
+                    mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
+                else:
+                    mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
+                wandb.log(mmd_results)
 
 
 
@@ -141,7 +172,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
             self.model.eval()
             with torch.no_grad():
-                if self.hparams.string_type in ['group', 'bfs-deg-group']:
+                if self.hparams.string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc']:
                     sequences = self.model.decode(cur_num_samples, max_len=int(self.hparams.max_len/4), device=self.device)
                 else:
                     sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)

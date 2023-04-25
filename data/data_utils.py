@@ -9,13 +9,15 @@ from treelib import Tree, Node
 from sklearn.model_selection import train_test_split
 from itertools import zip_longest
 import networkx as nx
-import pickle
 
-# from data.dataset import DATASETS
-# from data.orderings import ORDER_FUNCS, order_graphs
+from data.tokens import grouper_mol
 
 
 DATA_DIR = "resource"
+NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17}
+TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
+BOND_TYPE_DICT = {1: 5, 2: 6, 3: 7, 1.5: 8}
+TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}
 
 def get_level(node):
     return int(node.identifier.split('-')[0])
@@ -124,7 +126,7 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
 
 def check_tree_validity(tree):
     depth = tree.depth()
-    leaves = [leaf for leaf in tree.leaves() if leaf.tag == 1]
+    leaves = [leaf for leaf in tree.leaves() if leaf.tag != '0']
     invalid_leaves = [leaf for leaf in leaves if tree.depth(leaf)!=depth]
     if len(invalid_leaves) == 0:
         return True
@@ -138,30 +140,18 @@ def tree_to_adj(tree):
     tree = map_starting_point(tree)
     k = get_k(tree)
     depth = tree.depth()
-    leaves = [leaf for leaf in tree.leaves() if leaf.tag == 1]
+    leaves = [leaf for leaf in tree.leaves() if leaf.tag != '0']
     one_data_points = [leaf.data for leaf in leaves]
     x_list = [data[0] for data in one_data_points]
     y_list = [data[1] for data in one_data_points]
+    label_list = [NODE_TYPE_DICT[leaf.tag] if leaf.tag in NODE_TYPE_DICT.keys() else int(leaf.tag) for leaf in leaves]
     matrix_size = int(k**depth)
     adj = torch.zeros((matrix_size, matrix_size))
-    adj[x_list, y_list] = 1
+    for x, y, label in zip(x_list, y_list, label_list):
+        adj[x, y] = label
     
     return adj
 
-def map_starting_point_node(node, tree):
-    # TODO: fix error (None: node update 못하는 것 고치기)
-    print(node)
-    parent = get_parent(node, tree)
-    siblings = get_children_identifier(parent, tree)
-    index = siblings.index(node.identifier)
-    level = get_level(node)
-    tree_depth = tree.depth()
-    k = get_k(tree)
-    matrix_size = k**tree_depth
-    adding_value = int(matrix_size/(k**level))
-    parent_starting_point = parent.data
-    node.data = (parent_starting_point[0]+adding_value*int(index/2), parent_starting_point[1]+adding_value*int(index%2))
-    return node.data
 
 def map_starting_point(tree):
     '''
@@ -170,10 +160,6 @@ def map_starting_point(tree):
     bfs_list = [tree[node] for node in tree.expand_tree(mode=Tree.WIDTH, 
                                                             key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])),)]
     bfs_list[0].data = (0,0)
-    # start_time = time()
-    # start_points = Parallel(n_jobs=4, backend='multiprocessing')(delayed(map_starting_point_node)(node, tree) for node in bfs_list[1:])
-    
-    # print(f'elapsed change: {start_time - time()}')
     
     for node in bfs_list[1:]:
         parent = get_parent(node, tree)
@@ -290,22 +276,26 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return zip_longest(fillvalue=fillvalue, *args)
 
-def bfs_string_to_tree(string):
+def bfs_string_to_tree(string, is_zinc=False):
     tree = Tree()
     tree.create_node("root", "0")
     parent_node = tree["0"]
     node_deque = deque([])
-    for node_1, node_2, node_3, node_4 in grouper(4, string):
+    if is_zinc:
+        node_groups = grouper_mol(string)
+    else:
+        node_groups = grouper(4, string)
+    for node_1, node_2, node_3, node_4 in node_groups:
         parent_level = get_level(parent_node)
         cur_level_max = max([get_location(node) for node in tree.nodes.values() if get_level(node) == parent_level+1], default=0)
         for i, node_tag in enumerate([node_1, node_2, node_3, node_4], 1):
             if node_tag == None:
                 break
-            new_node = Node(tag=int(node_tag), identifier=f"{parent_level+1}-{cur_level_max+i}")
+            new_node = Node(tag=node_tag, identifier=f"{parent_level+1}-{cur_level_max+i}")
             tree.add_node(new_node, parent=parent_node)
             node_deque.append(new_node)
         parent_node = node_deque.popleft()
-        while(parent_node.tag == 0):
+        while(parent_node.tag == '0'):
             if len(node_deque) == 0:
                 return tree
             parent_node = node_deque.popleft()
@@ -313,7 +303,6 @@ def bfs_string_to_tree(string):
 
 def clean_string(string):
 
-    
     if "[pad]" in string:
         string = string[:string.index("[pad]")]
         
