@@ -175,9 +175,7 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
         return pos_list
     
 
-
-
-class SmilesGenerator(nn.Module):
+class TransGenerator(nn.Module):
     '''
     without tree information (only string)
     '''
@@ -187,7 +185,7 @@ class SmilesGenerator(nn.Module):
         self, num_layers, emb_size, nhead, dim_feedforward, 
         input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos
     ):
-        super(SmilesGenerator, self).__init__()
+        super(TransGenerator, self).__init__()
         self.nhead = nhead
         self.tokens = TOKENS_DICT[string_type]
         self.TOKEN2ID = token_to_id(self.tokens)
@@ -219,6 +217,7 @@ class SmilesGenerator(nn.Module):
 
         #
         self.generator = nn.Linear(emb_size, len(self.tokens))
+        # self.node_type_generator = nn.Linear(emb_size, len())
 
     def forward(self, sequences):
         

@@ -8,8 +8,8 @@ import wandb
 from time import gmtime, strftime
 import pickle
 
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset
-from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, train_val_test_split, bfs_string_to_tree, adj_to_graph
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset
+from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, train_val_test_split, bfs_string_to_tree, adj_to_graph, check_tree_validity
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
@@ -33,7 +33,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             "GDSS_ego": EgoDataset,
             "GDSS_com": ComDataset,
             "GDSS_enz": EnzDataset,
-            "grid_small": GridSmallDataset
+            "grid_small": GridSmallDataset,
+            'qm9': QM9Dataset,
+            'zinc': ZINCDataset
         }.get(hparams.dataset_name)
         try:
             with open(f'resource/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
@@ -109,7 +111,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             for org_string, string in zip(org_string_list, string_list):
                 table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
             wandb.log({'strings': table})
-            valid_sampled_trees = [tree for tree in sampled_trees if tree.depth() <= self.max_depth]
+            valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
+            wandb.log({"tree-validity": len(valid_sampled_trees) / len(sampled_trees)})
             valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
             sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
                               for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]

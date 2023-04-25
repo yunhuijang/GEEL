@@ -9,8 +9,13 @@ from treelib import Tree, Node
 from sklearn.model_selection import train_test_split
 from itertools import zip_longest
 import networkx as nx
-from joblib import Parallel, delayed
+import pickle
 
+# from data.dataset import DATASETS
+# from data.orderings import ORDER_FUNCS, order_graphs
+
+
+DATA_DIR = "resource"
 
 def get_level(node):
     return int(node.identifier.split('-')[0])
@@ -34,8 +39,10 @@ def nearest_power_2(N):
 
     return 2**(a + 1)
 
-def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4):
+def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False):
     # TODO: generalize for other k
+    if not is_mol:
+        adj[adj > 0] = 1
     n_org_nodes = adj.shape[0]
     # add padding (proper size for k)
     n_nodes = nearest_power_2(n_org_nodes)
@@ -56,7 +63,12 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4):
             padded_adj[slice_size:, :slice_size], padded_adj[slice_size:, slice_size:]])
     sliced_adjs_is_zero = LongTensor([int(count_nonzero(adj)>0) for adj in sliced_adjs])
     tree_list.append(sliced_adjs_is_zero)
-    tree_element_list = deque(sliced_adjs_is_zero)
+    # molecule + only leaf
+    if is_mol and adj.shape[0] == 2:
+        tree_element_list = deque(list(map(int, torch.flatten(adj).tolist())))
+    else:
+        tree_element_list = deque(sliced_adjs_is_zero)
+
     for i, elem in enumerate(tree_element_list, 1):
         tree.create_node(elem, f"1-{i}", parent="0")
         tree_key_list.append(f"1-{i}")
@@ -110,6 +122,14 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4):
     else:
         return tree_list, leaf_list
 
+def check_tree_validity(tree):
+    depth = tree.depth()
+    leaves = [leaf for leaf in tree.leaves() if leaf.tag == 1]
+    invalid_leaves = [leaf for leaf in leaves if tree.depth(leaf)!=depth]
+    if len(invalid_leaves) == 0:
+        return True
+    else:
+        return False
 
 def tree_to_adj(tree):
     '''
@@ -206,7 +226,7 @@ def map_child_deg(node, tree):
         return str(int(node.tag))
     
     children = get_children_identifier(node, tree)
-    child_deg = sum([int(tree[child].tag) for child in children])
+    child_deg = sum([int(tree[child].tag > 0) for child in children])
     
     return str(child_deg)
 
@@ -230,10 +250,8 @@ def tree_to_bfs_string(tree, string_type='bfs'):
         if string_type == 'bfs-tri':
             bfs_value_list = [bfs_value_list[i] for i in range(len(bfs_value_list)) if i % 4 !=2]
     elif string_type in ['bfs-deg', 'bfs-deg-group']:
-        bfs_value_list = Parallel(n_jobs=8)(delayed(map_child_deg)(node, tree) for node in bfs_node_list)
-
-    
-    return ''.join(bfs_value_list)
+        bfs_value_list = [map_child_deg(node, tree) for node in bfs_node_list]
+        return ''.join(bfs_value_list)
 
 def dfs_string_to_tree(string):
     tree = Tree()

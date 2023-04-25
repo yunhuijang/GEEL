@@ -6,16 +6,16 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
 
 from evaluation.evaluation import compute_sequence_cross_entropy
-from model.trans_generator import SmilesGenerator
+from model.trans_generator import TransGenerator
 from train_generator import BaseGeneratorLightningModule
 
 
-class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
+class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
 
     def setup_model(self, hparams):
-        self.model = SmilesGenerator(
+        self.model = TransGenerator(
             num_layers=hparams.num_layers,
             emb_size=hparams.emb_size,
             nhead=hparams.nhead,
@@ -73,7 +73,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
         
-        parser.add_argument("--dataset_name", type=str, default="GDSS_ego")
+        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
         parser.add_argument("--batch_size", type=int, default=32)
         parser.add_argument("--num_workers", type=int, default=6)
 
@@ -82,7 +82,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         #
         parser.add_argument("--emb_size", type=int, default=512)
         parser.add_argument("--dropout", type=int, default=0.1)
-        parser.add_argument("--lr", type=float, default=0.001)
+        parser.add_argument("--lr", type=float, default=0.002)
         
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
         parser.add_argument("--num_samples", type=int, default=100)
@@ -102,7 +102,7 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dim_feedforward", type=int, default=512)
         parser.add_argument("--input_dropout", type=int, default=0.0)
         parser.add_argument("--tree_pos", action="store_true")
-        parser.add_argument("--pos_type", type=str, default='pad')
+        parser.add_argument("--pos_type", type=str, default='emb')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
 
@@ -111,16 +111,16 @@ class SmilesGeneratorLightningModule(BaseGeneratorLightningModule):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    SmilesGeneratorLightningModule.add_args(parser)
+    TransGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
     
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{hparams.pos_type}', 
                                project='gcg', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     
     wandb.config.update(hparams)
 
 
-    model = SmilesGeneratorLightningModule(hparams)
+    model = TransGeneratorLightningModule(hparams)
 
 
     trainer = pl.Trainer(
