@@ -65,9 +65,9 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
         smiles = smiles[:100]
     smiles = [s for s in smiles if len(s)>1]
     smiles = canonicalize_smiles(smiles)
-    split = ['train', 'val', 'test']
+    splits = ['train', 'val', 'test']
     train_smiles, val_smiles, test_smiles = train_val_test_split(smiles)
-    for s, split in zip([train_smiles, val_smiles, test_smiles], split):
+    for s, split in zip([train_smiles, val_smiles, test_smiles], splits):
         with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_smiles_{split}.txt', 'w') as f:
             for string in s:
                 f.write(f'{string}\n')
@@ -87,7 +87,7 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
     # write graphs
     
     
-    for graphs, split in zip(graph_list, split):
+    for graphs, split in zip(graph_list, splits):
         weighted_adjs = [nx.attr_matrix(graph, edge_attr='label', rc_order=range(len(graph))) for graph in graphs]
         trees = [adj_to_k2_tree(torch.Tensor(adj), return_tree=True, is_mol=True) for adj in tqdm(weighted_adjs, 'Generating tree from adj')]
         strings = [tree_to_bfs_string_mol(tree, string_type='bfs-deg-group') for tree in tqdm(trees, 'Generating strings from tree')]
@@ -194,7 +194,7 @@ def check_valency(mol):
         atomid_valence = list(map(int, re.findall(r'\d+', e_sub)))
         return False, atomid_valence
 
-
+# codes adapted from https://github.com/cvignac/DiGress
 def correct_mol(m):
     # xsm = Chem.MolToSmiles(x, isomericSmiles=True)
     mol = m
@@ -214,22 +214,24 @@ def correct_mol(m):
             idx = atomid_valence[0]
             v = atomid_valence[1]
             queue = []
+            check_idx = 0
             for b in mol.GetAtomWithIdx(idx).GetBonds():
-                queue.append((b.GetIdx(), int(b.GetBondType()), b.GetBeginAtomIdx(), b.GetEndAtomIdx()))
+                type = int(b.GetBondType())
+                queue.append((b.GetIdx(), type, b.GetBeginAtomIdx(), b.GetEndAtomIdx()))
+                if type == 12:
+                    check_idx += 1
             queue.sort(key=lambda tup: tup[1], reverse=True)
-            if len(queue) > 0:
-                start = queue[0][2]
-                end = queue[0][3]
-                t = queue[0][1] - 1
+
+            if queue[-1][1] == 12:
+                return None, no_correct
+            elif len(queue) > 0:
+                start = queue[check_idx][2]
+                end = queue[check_idx][3]
+                t = queue[check_idx][1] - 1
                 mol.RemoveBond(start, end)
                 if t >= 1:
-                    # aromatic bond
-                    if t == 11:
-                        mol.AddBond(start, end, bond_decoder[8])
-                    else:
-                        mol.AddBond(start, end, bond_decoder[t+4])
+                    mol.AddBond(start, end, bond_decoder[t+4])
     return mol, no_correct
-
 
 def valid_mol_can_with_seg(m, largest_connected_comp=True):
     if m is None:
