@@ -18,7 +18,7 @@ from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
 from data.tokens import untokenize
 
-directory = 'resource'
+DATA_DIR = "resource"
 
 class BaseGeneratorLightningModule(pl.LightningModule):
     def __init__(self, hparams):
@@ -42,11 +42,11 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'zinc': ZINCDataset
         }.get(hparams.dataset_name)
         if hparams.dataset_name in ['qm9', 'zinc']:
-            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
                 self.train_smiles = f.readlines()
-            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
                 self.test_smiles = f.readlines()
-            with open(f'{directory}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
                 self.test_graphs = pickle.load(f)
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=(not hparams.tree_pos))
                                                                    for split in ['train', 'val', 'test']]
@@ -115,10 +115,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string
-            table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
-            for org_string, string in zip(org_string_list, string_list):
-                table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
-            wandb.log({'strings': table})
+
             valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
             if self.hparams.string_type in ['zinc', 'qm9']:
                 # valid_sampled_trees = sampled_trees[:len(self.test_graphs)]
@@ -131,6 +128,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 num_mols = len(mols)
                 gen_smiles = mols_to_smiles(mols)
                 gen_smiles = [smi for smi in gen_smiles if len(smi)]
+                table = wandb.Table(columns=['SMILES'])
+                for s in gen_smiles:
+                    table.add_data(s)
+                wandb.log({'SMILES': table})
                 save_dir = f'{self.hparams.dataset_name}/{self.ts}'
                 with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
                     for smiles in gen_smiles:
@@ -142,7 +143,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
                 wandb.log(metrics_dict)
             else:
-                
+                table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
+                for org_string, string in zip(org_string_list, string_list):
+                    table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
+                wandb.log({'strings': table})
                 valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
                 sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
                                 for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
