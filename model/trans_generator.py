@@ -144,7 +144,7 @@ class GroupTreePositionalEncoding(TreePositionalEncoding):
     
     def map_string_to_sum(self, raw_string):
         string = self.id2token[raw_string]
-        result = [char.start()+1 for char in re.finditer(r'(1|2|3|4)', string)]
+        result = [char.start()+1 for char in re.finditer(r'(?!0).', string)]
         result.append(0)
         return result
     
@@ -196,7 +196,7 @@ class TransGenerator(nn.Module):
         self.pos_type = pos_type
         self.learn_pos = learn_pos
         
-        if string_type in ['group', 'bfs-deg-group']:
+        if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc']:
             self.max_len = int(max_len/4)
             if self.tree_pos:
                 self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type, self.max_len)
