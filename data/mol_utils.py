@@ -223,7 +223,11 @@ def correct_mol(m):
                 t = queue[0][1] - 1
                 mol.RemoveBond(start, end)
                 if t >= 1:
-                    mol.AddBond(start, end, bond_decoder[t+4])
+                    # aromatic bond
+                    if t == 11:
+                        mol.AddBond(start, end, bond_decoder[8])
+                    else:
+                        mol.AddBond(start, end, bond_decoder[t+4])
     return mol, no_correct
 
 
