@@ -25,6 +25,10 @@ TOKENS_BFS_DEG_GROUP = standard_tokens.copy()
 group_num_tokens = list(product([0,1,2,3,4], repeat=4))
 TOKENS_BFS_DEG_GROUP.extend([''.join(str(token)).replace(', ', '')[1:-1] for token in group_num_tokens])
 
+TOKENS_GROUP_RED = TOKENS_GROUP.copy()
+group_num_tokens = list(product([0,1], repeat=3))
+TOKENS_GROUP_RED.extend([''.join(str(token)).replace(', ', '')[1:-1] for token in group_num_tokens if token!=(0,0,0)])
+
 TOKENS_MOL = TOKENS_BFS_DEG_GROUP.copy()
 # 5: single / 6: double / 7:triple / 8: aromatic
 bond_tokens = [0,5,6,7,8]
@@ -52,10 +56,16 @@ TOKENS_ZINC.extend([''.join(str(token)).replace(', ', '').replace('\'', '')[1:-1
 
 TOKENS_DICT = {'dfs': TOKENS_DFS, 'bfs': TOKENS_BFS, 'group': TOKENS_GROUP, 
                'bfs-deg': TOKENS_BFS_DEG, 'bfs-deg-group': TOKENS_BFS_DEG_GROUP,
-               'qm9': TOKENS_QM9, 'zinc': TOKENS_ZINC}
+               'qm9': TOKENS_QM9, 'zinc': TOKENS_ZINC, 'group-red': TOKENS_GROUP_RED}
 
-def token_to_id(tokens):
-    return {token: tokens.index(token) for token in tokens}
+
+def token_list_to_dict(tokens):
+    return {token: i for i, token in enumerate(tokens)}
+
+TOKENS_KEY_DICT = {key: token_list_to_dict(value) for key, value in TOKENS_DICT.items()}
+
+def token_to_id(string_type):
+    return TOKENS_KEY_DICT[string_type]
 
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
@@ -91,10 +101,12 @@ def tokenize(string, string_type):
     elif string_type in ['zinc']:
         cut_list = grouper_mol(string)
         tokens.extend([''.join(tok) for tok in cut_list])
+    elif 'red' in string_type:
+        tokens.extend(string)
     else:
         tokens.extend([*string])
     tokens.append("[eos]")
-    TOKEN2ID = token_to_id(TOKENS_DICT[string_type])
+    TOKEN2ID = token_to_id(string_type)
     return [TOKEN2ID[token] for token in tokens]
 
 def map_one(token):
@@ -117,5 +129,3 @@ def untokenize(sequence, string_type):
         return "", "".join(org_tokens)
     
     return "".join(tokens), "".join(org_tokens)
-    
-    
