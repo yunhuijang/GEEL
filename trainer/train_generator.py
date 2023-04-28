@@ -18,7 +18,7 @@ from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
 from data.tokens import untokenize
 
-DATA_DIR = "resource"
+DATA_DIR = "gcg/resource"
 
 class BaseGeneratorLightningModule(pl.LightningModule):
     def __init__(self, hparams):
@@ -46,9 +46,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 self.train_smiles = f.readlines()
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
                 self.test_smiles = f.readlines()
-            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
-                self.test_graphs = pickle.load(f)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=(not hparams.tree_pos))
+        with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+            self.test_graphs = pickle.load(f)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=hparams.tree_pos)
                                                                    for split in ['train', 'val', 'test']]
         self.max_depth = hparams.max_depth
 
