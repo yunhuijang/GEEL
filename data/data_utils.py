@@ -366,3 +366,6 @@ def map_tree_pe(tree):
             pe = torch.cat((current_pe, parent.data[:int(size-k**2)]))
             node.data = pe
     return tree
+
+# def group_redundant_pos(pos_list):
+    

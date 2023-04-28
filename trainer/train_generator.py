@@ -18,7 +18,7 @@ from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
 from data.tokens import untokenize
 
-DATA_DIR = "gcg/resource"
+DATA_DIR = "resource"
 
 class BaseGeneratorLightningModule(pl.LightningModule):
     def __init__(self, hparams):

@@ -73,8 +73,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
         
-        parser.add_argument("--dataset_name", type=str, default="qm9")
-        parser.add_argument("--batch_size", type=int, default=32)
+        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
+        parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=6)
 
         parser.add_argument("--order", type=str, default="C-M")
@@ -84,16 +84,16 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=int, default=0.1)
         parser.add_argument("--lr", type=float, default=0.002)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=20)
-        parser.add_argument("--num_samples", type=int, default=100)
-        parser.add_argument("--sample_batch_size", type=int, default=50)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=10)
+        parser.add_argument("--num_samples", type=int, default=500)
+        parser.add_argument("--sample_batch_size", type=int, default=200)
         parser.add_argument("--max_epochs", type=int, default=500)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=484)
-        parser.add_argument("--string_type", type=str, default='qm9')
+        parser.add_argument("--string_type", type=str, default='group-red')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer
@@ -102,7 +102,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dim_feedforward", type=int, default=512)
         parser.add_argument("--input_dropout", type=int, default=0.0)
         parser.add_argument("--tree_pos", action="store_true")
-        parser.add_argument("--pos_type", type=str, default='emb')
+        parser.add_argument("--pos_type", type=str, default='group-emb')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
 
