@@ -51,8 +51,7 @@ class TreePositionalEncoding(nn.Module):
             self.max_pe_length = int(math.log(max_len, 4)+5)*4
         self.positional_embedding = nn.Linear(self.max_pe_length, self.d_model)
         self.padder = torch.nn.ReplicationPad2d((0,self.d_model-self.max_pe_length,0,0))
-        is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True,
-                         'qm9': True, 'zinc': True}
+        is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True}
         self.is_group = is_group_dict[self.pos_type]
         
     def filter_row_string(self, row_string):
@@ -189,9 +188,9 @@ class TransGenerator(nn.Module):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
         self.tokens = TOKENS_DICT[string_type]
-        self.TOKEN2ID = token_to_id(self.tokens)
         self.ID2TOKEN = id_to_token(self.tokens)
         self.string_type = string_type
+        self.TOKEN2ID = token_to_id(self.string_type)
         self.tree_pos = tree_pos
         self.pos_type = pos_type
         self.learn_pos = learn_pos
@@ -224,7 +223,7 @@ class TransGenerator(nn.Module):
         
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        TOKEN2ID = token_to_id(self.tokens)
+        TOKEN2ID = token_to_id(self.string_type)
         #
         out = self.token_embedding_layer(sequences)
         if self.tree_pos:
@@ -263,7 +262,7 @@ class TransGenerator(nn.Module):
         return logits
 
     def decode(self, num_samples, max_len, device):
-        TOKEN2ID = token_to_id(self.tokens)
+        TOKEN2ID = token_to_id(self.string_type)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for _ in tqdm(range(max_len), "generation"):
