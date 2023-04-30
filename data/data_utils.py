@@ -9,6 +9,7 @@ from treelib import Tree, Node
 from sklearn.model_selection import train_test_split
 from itertools import zip_longest
 import networkx as nx
+from treelib import Tree, Node
 
 from data.tokens import grouper_mol
 
@@ -32,8 +33,13 @@ def get_parent(node, tree):
     return tree[node.predecessor(tree.identifier)]
 
 def get_children_identifier(node, tree):
-    return node.successors(tree.identifier)
+    return sorted(node.successors(tree.identifier), key=lambda x: get_sort_key(x))
 
+def get_sort_key(node_id):
+    if len(node_id.split('-')) > 2:
+        return (int(node_id.split('-')[0]), int(node_id.split('-')[1]), int(node_id.split('-')[2]))
+    else:
+        return (int(node_id.split('-')[0]), int(node_id.split('-')[1]))
 def nearest_power_2(N):
     a = int(math.log2(N)) 
     if 2**a == N:
@@ -126,6 +132,8 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
 
 def check_tree_validity(tree):
     depth = tree.depth()
+    if depth == 1:
+        return False
     leaves = [leaf for leaf in tree.leaves() if leaf.tag != '0']
     invalid_leaves = [leaf for leaf in leaves if tree.depth(leaf)!=depth]
     if len(invalid_leaves) == 0:
@@ -157,7 +165,11 @@ def map_starting_point(tree):
     '''
     map starting points for each elements in tree (to convert adjacency matrix)
     '''
-    bfs_list = [tree[node] for node in tree.expand_tree(mode=Tree.WIDTH, 
+    if len(tree.root.split('-'))>1:
+        bfs_list = [tree[node] for node in tree.expand_tree(mode=Tree.WIDTH, 
+                                                            key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1]), int(x.identifier.split('-')[2])))]
+    else:
+        bfs_list = [tree[node] for node in tree.expand_tree(mode=Tree.WIDTH, 
                                                             key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])),)]
     bfs_list[0].data = (0,0)
     
@@ -367,5 +379,77 @@ def map_tree_pe(tree):
             node.data = pe
     return tree
 
-# def group_redundant_pos(pos_list):
+# for redundant removed strings
+
+def generate_final_tree_red(tree):
+    tree_with_iden = add_zero_to_identifier(tree)
+    final_tree = add_symmetry_to_tree(tree_with_iden)
     
+    return final_tree
+
+def generate_initial_tree_red(string_token_list):
+    node_groups = [tuple([*s]) for s in string_token_list]
+    tree = Tree()
+    tree.create_node("root", "0")
+    parent_node = tree["0"]
+    node_deque = deque([])
+    for nodes in node_groups:
+        parent_level = get_level(parent_node)
+        cur_level_max = max([get_location(node) for node in tree.nodes.values() if get_level(node) == parent_level+1], default=0)
+        for i, node_tag in enumerate(nodes, 1):
+            if node_tag == None:
+                break
+            new_node = Node(tag=node_tag, identifier=f"{parent_level+1}-{cur_level_max+i}")
+            tree.add_node(new_node, parent=parent_node)
+            node_deque.append(new_node)
+        parent_node = node_deque.popleft()
+        while(parent_node.tag == '0'):
+            if len(node_deque) == 0:
+                return tree
+            parent_node = node_deque.popleft()
+    
+    return tree
+
+def find_new_identifier(node_id, num=10):
+    split = node_id.split('-')
+    new_last_identifier = int(split[2])-num
+    cur_pre_identifier = split[0] + '-' + split[1]
+    return cur_pre_identifier + '-' + str(new_last_identifier)
+
+def add_symmetry_to_tree(tree):
+    bfs_node_list = [tree[node] for node in tree.expand_tree(mode=tree.WIDTH, key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])))]
+    node_list = [node for node in bfs_node_list[::-1] if not node.is_leaf()]
+    for node in node_list:
+        child_nodes = get_children_identifier(node, tree)
+        # child_nodes = sorted(child_nodes)
+        if len(child_nodes) < 4:
+            copy_node = tree.get_node(child_nodes[1])
+            new_node = Node(tag=copy_node.tag, identifier=find_new_identifier(copy_node.identifier, 1))
+            subtree = Tree(tree.subtree(child_nodes[1]), deep=True)
+            new_tree = Tree(subtree, deep=True)
+            if len(subtree) > 1:
+                for nid, n in sorted(subtree.nodes.items()):
+                    count_dup = len([key for key in subtree.nodes.keys() 
+                                     if (key.split('-')[0] == nid.split('-')[0]) and (key.split('-')[1] == nid.split('-')[1])])
+                    new_iden = find_new_identifier(nid, count_dup*10)
+                    # while new_iden in subtree.nodes:
+                    #     new_iden = find_new_identifier(new_iden, 10)
+                    new_tree.update_node(nid, identifier=new_iden)
+                tree.paste(node.identifier, new_tree)
+            else:
+                tree.add_node(new_node, parent=node)
+            
+    return tree
+
+def add_zero_to_identifier(tree):
+    new_tree = Tree(tree, deep=True)
+    for node in tree.nodes:
+        new_identifier = node
+        while (len(new_identifier.split('-'))<3):
+            new_identifier = new_identifier + '-1000'
+        new_tree.update_node(node, identifier=new_identifier)
+    return new_tree
+
+def fix_symmetry(adj):
+    sym_adj = torch.tril(adj) + torch.tril(adj).T
+    return torch.where(sym_adj>0, 1, 0)

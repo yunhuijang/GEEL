@@ -97,7 +97,7 @@ if __name__ == "__main__":
     hparams = parser.parse_args()
     
     wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
-                               project='gcg', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
+                               project='k2g', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     
     wandb.config.update(hparams)
     

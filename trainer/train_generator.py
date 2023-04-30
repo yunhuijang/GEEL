@@ -11,7 +11,7 @@ import os
 from moses.metrics.metrics import get_all_metrics
 
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset
-from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity
+from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity, generate_final_tree_red, fix_symmetry, generate_initial_tree_red
 from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -111,7 +111,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     is_zinc = True
                 sampled_trees = [bfs_string_to_tree(string, is_zinc) 
                                 for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
-                
+            
+            elif self.hparams.string_type in ['bfs-red', 'group-red']:
+                valid_string_list = [string for string in string_list if len(string)>0]
+                sampled_trees_init = [generate_initial_tree_red(string) for string in valid_string_list]
+                sampled_trees_init = [tree for tree in sampled_trees_init if check_tree_validity(tree)]
+                sampled_trees = [generate_final_tree_red(tree) for tree in tqdm(sampled_trees_init, "Sampling: converting string to tree")]
                 
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string
@@ -147,10 +152,18 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 for org_string, string in zip(org_string_list, string_list):
                     table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
                 wandb.log({'strings': table})
+                if len(sampled_trees) > 0:
+                    tree_validity = len(valid_sampled_trees) / len(sampled_trees)
+                else:
+                    tree_validity = 0
+                wandb.log({"tree-validity": tree_validity})
                 valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-                sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
+                if 'red' in self.hparams.string_type:
+                    adjs = [fix_symmetry(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
+                    sampled_graphs = [adj_to_graph(adj) for adj in adjs]
+                else:
+                    sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
                                 for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
-                wandb.log({"tree-validity": len(valid_sampled_trees) / len(sampled_trees)})
                 save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
                 plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
                 plot_graphs_list(sampled_graphs, save_dir=plot_dir)
@@ -176,7 +189,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
             self.model.eval()
             with torch.no_grad():
-                if self.hparams.string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc']:
+                if self.hparams.string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red']:
                     sequences = self.model.decode(cur_num_samples, max_len=int(self.hparams.max_len/4), device=self.device)
                 else:
                     sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
@@ -202,7 +215,7 @@ if __name__ == "__main__":
 
 
     hparams = parser.parse_args()
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}', project='gcg', 
+    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}', project='k2g', 
                                group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     wandb.config.update(hparams)
     

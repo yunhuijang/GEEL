@@ -195,7 +195,7 @@ class TransGenerator(nn.Module):
         self.pos_type = pos_type
         self.learn_pos = learn_pos
         
-        if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc']:
+        if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red']:
             self.max_len = int(max_len/4)
             if self.tree_pos:
                 self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type, self.max_len)

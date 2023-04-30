@@ -116,7 +116,7 @@ def map_one(token):
 def untokenize(sequence, string_type):
     ID2TOKEN = id_to_token(TOKENS_DICT[string_type])
     tokens = [ID2TOKEN[id_] for id_ in sequence]
-    if string_type in ['bfs-deg', 'bfs-deg-group', 'qm9', 'zinc']:
+    if string_type in ['bfs-deg', 'bfs-deg-group']:
         tokens = [map_one(token) for token in tokens]
     org_tokens = tokens
     if tokens[0] != "[bos]":
@@ -128,4 +128,7 @@ def untokenize(sequence, string_type):
     if ("[bos]" in tokens) or ("[pad]" in tokens):
         return "", "".join(org_tokens)
     
-    return "".join(tokens), "".join(org_tokens)
+    if 'red' in string_type:
+        return tokens, org_tokens
+    else:
+        return "".join(tokens), "".join(org_tokens)
