@@ -144,6 +144,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 scores = get_all_metrics(gen=gen_smiles, device=self.device, n_jobs=8, test=self.test_smiles, train=self.train_smiles, k=len(gen_smiles))
                 scores_nspdk = eval_graph_list(self.test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
                 metrics_dict = scores
+                metrics_dict['unique'] = scores[f'unique@{len(gen_smiles)}']
+                del metrics_dict[f'unique@{len(gen_smiles)}']
                 metrics_dict['NSPDK'] = scores_nspdk
                 metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
                 wandb.log(metrics_dict)
@@ -158,12 +160,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     tree_validity = 0
                 wandb.log({"tree-validity": tree_validity})
                 valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-                if 'red' in self.hparams.string_type:
-                    adjs = [fix_symmetry(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
-                    sampled_graphs = [adj_to_graph(adj) for adj in adjs]
-                else:
-                    sampled_graphs = [adj_to_graph(tree_to_adj(tree).numpy()) 
-                                for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
+                # if 'red' in self.hparams.string_type:
+                adjs = [fix_symmetry(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
+                sampled_graphs = [adj_to_graph(adj) for adj in adjs]
+                # else:
+                # sampled_graphs = [adj_to_graph(fix_symmetry(tree_to_adj(tree)).numpy()) 
+                # for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
                 save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
                 plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
                 plot_graphs_list(sampled_graphs, save_dir=plot_dir)
