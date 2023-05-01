@@ -25,14 +25,13 @@ DATASETS = {  # name: (graphs, num_repetitions)
 }
     
 class EgoDataset(Dataset):
-    data_name = "ego_small"
+    data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     def __init__(self, split, string_type='bfs', is_tree=False):
         self.string_type = string_type
         self.is_tree = is_tree
-        string_path = os.path.join(self.raw_dir, f"{self.data_name}_str_{split}.pkl")
-        with open(string_path, 'rb') as f:
-            self.strings = pickle.load(f)
+        string_path = os.path.join(self.raw_dir, f"{self.data_name}_str_{split}.txt")
+        self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
         # use tree degree information
         if self.string_type in ['bfs-deg', 'bfs-deg-group']:
             self.strings = [self.map_deg_string(string) for string in self.strings]
@@ -98,15 +97,15 @@ class EgoDataset(Dataset):
         return [''.join(l) for l in final_string_cut_list]
     
 class ComDataset(EgoDataset):
-    data_name = 'community_small'
+    data_name = 'GDSS_com'
     raw_dir = f'{DATA_DIR}/GDSS_com'
     
 class EnzDataset(EgoDataset):
-    data_name = 'ENZYMES'
+    data_name = 'GDSS_enz'
     raw_dir = f'{DATA_DIR}/GDSS_enz'
 
 class GridDataset(EgoDataset):
-    data_name = 'grid'
+    data_name = 'GDSS_grid'
     raw_dir = f'{DATA_DIR}/GDSS_grid'
     
 class GridSmallDataset(EgoDataset):
@@ -116,12 +115,15 @@ class GridSmallDataset(EgoDataset):
 class QM9Dataset(EgoDataset):
     data_name = "qm9"
     raw_dir = f"{DATA_DIR}/qm9"
-    def __init__(self, split, string_type='bfs', is_tree=False):
-        self.string_type = string_type
-        self.is_tree = is_tree
-        string_path = os.path.join(self.raw_dir, f"{self.data_name}_str_{split}.txt")
-        self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
         
-class ZINCDataset(QM9Dataset):
+class ZINCDataset(EgoDataset):
     data_name = 'zinc'
     raw_dir = f'{DATA_DIR}/zinc'
+    
+class PlanarDataset(EgoDataset):
+    data_name = 'planar'
+    raw_dir = f'{DATA_DIR}/planar'
+            
+class SBMDataset(PlanarDataset):
+    data_name = 'sbm'
+    raw_dir = f'{DATA_DIR}/sbm'

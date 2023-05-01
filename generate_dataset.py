@@ -11,7 +11,7 @@ from data.mol_utils import generate_mol_string
 
 DATA_DIR='gcg/resource'
 
-dataset = ['sbm', 'planar']
+dataset = ['GDSS_com', 'GDSS_ego', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm']
 for data in dataset:
     generate_string(data)
 
