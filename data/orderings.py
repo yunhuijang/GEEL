@@ -3,7 +3,7 @@ import random
 from collections import deque
 from operator import itemgetter
 from dataclasses import dataclass
-
+from itertools import chain
 import numpy as np
 import networkx as nx
 import torch
@@ -16,25 +16,29 @@ def bw_from_adj(A: np.ndarray) -> int:
     band_sizes = np.arange(A.shape[0]) - A.argmax(axis=1)
     return band_sizes.max()
 
+
 def random_BFS_order(G: nx.Graph, seed=0) -> tuple:
     """
     :param G: Graph
     :return: random BFS order, maximum queue length (equal to bandwidth of ordering)
     """
-    start = random.choice(list(G))
-    visited = {start}
-    queue = deque([start])
-    max_q_len = 1
-    order = []
-    random.seed(seed)
-    while queue:
-        parent = queue.popleft()
-        order.append(parent)
-        children = sorted(set(G[parent]) - visited, key=lambda x: random.random())
-        visited.update(children)
-        queue.extend(children)
-        max_q_len = max(len(queue), max_q_len)
-    return order, max_q_len
+    connected_components = list(nx.connected_components(G))
+    if len(connected_components) > 1:
+        graphs = [G.subgraph(cc) for cc in connected_components]
+    else:
+        graphs = [G]
+    
+    order_list = []
+    for graph in graphs:
+        start = random.choice(list(graph))
+        edges = nx.bfs_edges(graph, start)
+        nodes = [start] + [v for u, v in edges]
+        order_list.append(nodes)
+    
+    if len(order_list) == 1:
+        return order_list[0], 0
+    else:
+        return list(chain(*order_list)), 0
 
 
 def bw_from_order(G: nx.Graph, order: list) -> int:
@@ -46,37 +50,23 @@ def random_DFS_order(G: nx.Graph, seed=0):
     :param G: Graph
     :return: random DFS order, maximum queue length (equal to bandwidth of ordering)
     """
-    start = random.choice(list(G))
-    visited = {start}
-    stack = [start]
-    order = []
-    random.seed(seed)
-    while stack:
-        parent = stack.pop()
-        order.append(parent)
-        children = sorted(set(G[parent]) - visited, key=lambda x: random.random())
-        visited.update(children)
-        stack.extend(children)
-    bw = bw_from_order(G, order)
-    return order, bw
-
-
-def random_recursive_DFS_order(G: nx.Graph) -> tuple:
-    visited = {}
-    v = random.choice(list(G.nodes()))
-    _recursive_DFS_order(G, v, visited)
-    order = list(visited)
-    bw = bw_from_order(G, order)
-    return order, bw
-
-
-def _recursive_DFS_order(G: nx.Graph, v, visited: dict):
-    visited[v] = True  # use dict as ordered set
-    if len(visited) == len(G):
-        return
-    children = sorted(set(G[v]) - set(visited), key=lambda x: random.random())
-    for child in children:
-        _recursive_DFS_order(G, child, visited)
+    connected_components = list(nx.connected_components(G))
+    if len(connected_components) > 1:
+        graphs = [G.subgraph(cc) for cc in connected_components]
+    else:
+        graphs = [G]
+    
+    order_list = []
+    for graph in graphs:
+        start = random.choice(list(graph))
+        edges = nx.dfs_edges(graph, start)
+        nodes = [start] + [v for u, v in edges]
+        order_list.append(nodes)
+    
+    if len(order_list) == 1:
+        return order_list[0], 0
+    else:
+        return list(chain(*order_list)), 0
 
 
 def uniform_random_order(G: nx.Graph) -> tuple:
@@ -85,7 +75,6 @@ def uniform_random_order(G: nx.Graph) -> tuple:
     bw = bw_from_order(G, order)
     return order, bw
 
-
 def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None) -> tuple:
     """
     adapted from NX source.
@@ -93,27 +82,40 @@ def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None)
     """
     # the cuthill mckee algorithm for connected graphs
     random.seed(seed)
-    if heuristic is None:
-        start = pseudo_peripheral_node(G, seed)
+    connected_components = list(nx.connected_components(G))
+    if len(connected_components) > 1:
+        graphs = [G.subgraph(cc) for cc in connected_components]
     else:
-        start = heuristic(G)
-    visited = {start}
-    queue = deque([start])
-    max_q_len = 1
-    i = 0
-    order = []
-    while queue:
-        parent = queue.popleft()
-        order.append(parent)
-        random.seed(seed+i)
-        key = random.random()
-        nd = sorted(list(G.degree(set(G[parent]) - visited)), key=lambda x: (x[1], key))
-        children = [n for n, d in nd]
-        visited.update(children)
-        queue.extend(children)
-        max_q_len = max(len(queue), max_q_len)
-        i+=1
-    return order, max_q_len
+        graphs = [G]
+    
+    order_list = []
+    for graph in graphs:
+        if heuristic is None:
+            start = pseudo_peripheral_node(graph, seed)
+        else:
+            start = heuristic(graph)
+        visited = {start}
+        queue = deque([start])
+        max_q_len = 1
+        i = 0
+        order = []
+        while queue:
+            parent = queue.popleft()
+            order.append(parent)
+            random.seed(seed+i)
+            key = random.random()
+            nd = sorted(list(G.degree(set(G[parent]) - visited)), key=lambda x: (x[1], key))
+            children = [n for n, d in nd]
+            visited.update(children)
+            queue.extend(children)
+            max_q_len = max(len(queue), max_q_len)
+            i+=1
+        order_list.append(order)
+    
+    if len(order_list) == 1:
+        return order_list[0], 0
+    else:
+        return list(chain(*order_list)), 0
 
 
 def pseudo_peripheral_node(G: nx.Graph, seed=0) -> int:

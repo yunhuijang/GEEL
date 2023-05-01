@@ -8,7 +8,7 @@ import numpy as np
 import re
 
 from data.orderings import ORDER_FUNCS, order_graphs
-from data.data_utils import train_val_test_split, adj_to_k2_tree, map_child_deg, TYPE_NODE_DICT, NODE_TYPE_DICT, BOND_TYPE_DICT
+from data.data_utils import train_val_test_split, adj_to_k2_tree, map_child_deg, TYPE_NODE_DICT, NODE_TYPE_DICT, BOND_TYPE_DICT, map_new_ordered_graph
 
 
 DATA_DIR = "resource"
@@ -41,16 +41,6 @@ def add_self_loop(graph):
         node_label = graph.nodes[node]['label']
         graph.add_edge(node, node, label=node_label)
     return graph
-
-def map_new_ordered_graph(ordered_graph):
-    '''
-    Map ordered_graph object to ordered networkx graph
-    '''
-    org_graph = ordered_graph.graph
-    ordering = ordered_graph.ordering
-    mapping = {i: ordering.index(i) for i in range(len(ordering))}
-    new_graph = nx.relabel_nodes(org_graph, mapping)
-    return new_graph
 
 
 def generate_mol_string(dataset_name, order='C-M', is_small=False):
@@ -90,7 +80,7 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
     for graphs, split in zip(graph_list, splits):
         weighted_adjs = [nx.attr_matrix(graph, edge_attr='label', rc_order=range(len(graph))) for graph in graphs]
         trees = [adj_to_k2_tree(torch.Tensor(adj), return_tree=True, is_mol=True) for adj in tqdm(weighted_adjs, 'Generating tree from adj')]
-        strings = [tree_to_bfs_string_mol(tree, string_type='bfs-deg-group') for tree in tqdm(trees, 'Generating strings from tree')]
+        strings = [tree_to_bfs_string_mol(tree, string_type='group') for tree in tqdm(trees, 'Generating strings from tree')]
         if is_small:
             file_name = f'{dataset_name}_small_str_{split}'
         else:
