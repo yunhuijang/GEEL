@@ -10,7 +10,7 @@ import pickle
 import os
 from moses.metrics.metrics import get_all_metrics
 
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset
 from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity, generate_final_tree_red, fix_symmetry, generate_initial_tree_red
 from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
@@ -39,7 +39,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             "GDSS_enz": EnzDataset,
             "grid_small": GridSmallDataset,
             'qm9': QM9Dataset,
-            'zinc': ZINCDataset
+            'zinc': ZINCDataset,
+            'planar': PlanarDataset,
+            'sbm': SBMDataset
         }.get(hparams.dataset_name)
         if hparams.dataset_name in ['qm9', 'zinc']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
