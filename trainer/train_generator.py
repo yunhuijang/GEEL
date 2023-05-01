@@ -86,9 +86,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batched_data, batch_idx):
-        # loss, statistics = self.shared_step(batched_data)
-        # for key, val in statistics.items():
-        #     self.log(f"validation/{key}", val, on_step=False, on_epoch=True, logger=True)
+        loss, statistics = self.shared_step(batched_data)
+        for key, val in statistics.items():
+            wandb.log({f"val/{key}": val})
+            self.log(f"val/{key}", val, on_step=False, on_epoch=True, logger=True)
         pass
 
     def validation_epoch_end(self, outputs):
@@ -191,10 +192,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
             self.model.eval()
             with torch.no_grad():
-                if self.hparams.string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red']:
-                    sequences = self.model.decode(cur_num_samples, max_len=int(self.hparams.max_len/4), device=self.device)
-                else:
-                    sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
+                # if self.hparams.string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red']:
+                #     sequences = self.model.decode(cur_num_samples, max_len=int(self.hparams.max_len/4), device=self.device)
+                # else:
+                sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
             strings = [untokenize(sequence, self.hparams.string_type)[0] for sequence in sequences.tolist()]
             org_strings = [untokenize(sequence, self.hparams.string_type)[1] for sequence in sequences.tolist()]
