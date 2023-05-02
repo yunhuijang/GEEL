@@ -12,6 +12,8 @@ import networkx as nx
 from treelib import Tree, Node
 import pickle
 from tqdm import tqdm
+import numpy as np
+from itertools import compress, islice
 
 from data.tokens import grouper_mol
 from data.orderings import ORDER_FUNCS, order_graphs
@@ -441,8 +443,8 @@ def generate_final_tree_red(tree):
 def generate_initial_tree_red(string_token_list):
     node_groups = [tuple([*s]) for s in string_token_list]
     tree = Tree()
-    tree.create_node("root", "0")
-    parent_node = tree["0"]
+    tree.create_node("root", "0-0-0")
+    parent_node = tree["0-0-0"]
     node_deque = deque([])
     for nodes in node_groups:
         parent_level = get_level(parent_node)
@@ -504,3 +506,54 @@ def add_zero_to_identifier(tree):
 def fix_symmetry(adj):
     sym_adj = torch.tril(adj) + torch.tril(adj).T
     return torch.where(sym_adj>0, 1, 0)
+
+def map_deg_string(string):
+    new_string = []
+    group_queue = deque(grouper(4, string))
+    group_queue.popleft()
+    for index, char in enumerate(string):
+        if len(group_queue) == 0:
+            left = string[index:]
+            break
+        if char == '0':
+            new_string.append(char)
+        else:
+            new_string.append(str(sum([int(char) for char in group_queue.popleft()])))
+            
+    return ''.join(new_string) + left
+
+def remove_redundant(input_string):
+    string = input_string[0:4]
+    pos_list = [1,2,3,4]
+    str_pos_queue = deque([(s, p) for s, p in zip(string, pos_list)])
+    for i in np.arange(4,len(input_string),4):
+        cur_string = input_string[i:i+4]
+        cur_parent, cur_parent_pos = str_pos_queue.popleft()
+        # if value is 0, it cannot be parent node -> skip
+        while((cur_parent == '0') and (len(str_pos_queue) > 0)):
+            cur_parent, cur_parent_pos = str_pos_queue.popleft()
+        # i: order of the child node in the same parent
+        cur_pos = [cur_parent_pos*10+i for i in range(1,1+len(cur_string))]
+        # pos_list: final position of each node
+        pos_list.extend(cur_pos)
+        str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
+    
+    pos_list = [str(pos) for pos in pos_list]
+    # find positions ends with 2 including only 1 and 4
+    remove_pos_prefix_list = [pos for i, pos in enumerate(pos_list) 
+                                if (pos[-1] == '2') and len((set(pos[:-1]))-set(['1', '4']))==0]
+    remain_pos_index = [not pos.startswith(tuple(remove_pos_prefix_list)) for pos in pos_list]
+    remain_pos_list = [pos for pos in pos_list if not pos.startswith(tuple(remove_pos_prefix_list))]
+    # find cutting points (one block)
+    cut_list = [i for i, pos in  enumerate(remain_pos_list) if pos[-1] == '4']
+    cut_list_2 = [0]
+    cut_list_2.extend(cut_list[:-1])
+    cut_size_list = [i - j for i, j in zip(cut_list , cut_list_2)]
+    cut_size_list[0] += 1
+    
+    final_string_list = list(compress([*input_string], remain_pos_index))
+
+    pos_list_iter = iter(final_string_list)
+    final_string_cut_list = [list(islice(pos_list_iter, i)) for i in cut_size_list]
+    
+    return [''.join(l) for l in final_string_cut_list]
