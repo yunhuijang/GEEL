@@ -32,6 +32,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
+        self.order = hparams.order
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -50,7 +51,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 self.test_smiles = f.readlines()
         with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
             self.test_graphs = pickle.load(f)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, is_tree=hparams.tree_pos)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, self.order, is_tree=hparams.tree_pos)
                                                                    for split in ['train', 'val', 'test']]
         self.max_depth = hparams.max_depth
 
