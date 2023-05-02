@@ -154,6 +154,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 wandb.log(metrics_dict)
             else:
                 table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
+                if 'red' in self.hparams.string_type:
+                    org_string_list = [''.join(org) for org in org_string_list]
+                    string_list = [''.join(s) for s in string_list]
                 for org_string, string in zip(org_string_list, string_list):
                     table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
                 wandb.log({'strings': table})

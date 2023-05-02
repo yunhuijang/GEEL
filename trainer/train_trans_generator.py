@@ -11,6 +11,10 @@ from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import TransGenerator
 from train_generator import BaseGeneratorLightningModule
 
+from signal import signal, SIGPIPE, SIG_DFL   
+#Ignore SIG_PIPE and don't throw exceptions on it... (http://docs.python.org/library/signal.html)  
+signal(SIGPIPE,SIG_DFL)
+
 
 class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def __init__(self, hparams):
@@ -95,7 +99,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=76)
-        parser.add_argument("--string_type", type=str, default='group')
+        parser.add_argument("--string_type", type=str, default='group-red')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer
