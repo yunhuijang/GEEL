@@ -1,28 +1,13 @@
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
-import pickle
 import os
-from collections import deque
-import numpy as np
-from itertools import compress, islice
 
 from data.data_utils import map_deg_string, remove_redundant
-from data.load_data import get_community_small_data, get_ego_small_data, get_gdss_enzymes_data,  \
-    get_gdss_grid_data, get_grid_small_data, get_caveman_data
 from data.tokens import tokenize
 
 
 DATA_DIR = "resource"
-
-DATASETS = {  # name: (graphs, num_repetitions)
-    "GDSS_com": (get_community_small_data, 1),
-    "GDSS_ego": (get_ego_small_data, 1),
-    "GDSS_grid": (get_gdss_grid_data, 1),
-    "GDSS_enz": (get_gdss_enzymes_data, 1),
-    "grid_small": (get_grid_small_data, 1),
-    "Caveman": (get_caveman_data, 1)
-}
     
 class EgoDataset(Dataset):
     data_name = "GDSS_ego"
@@ -74,6 +59,10 @@ class PlanarDataset(EgoDataset):
     data_name = 'planar'
     raw_dir = f'{DATA_DIR}/planar'
             
-class SBMDataset(PlanarDataset):
+class SBMDataset(EgoDataset):
     data_name = 'sbm'
     raw_dir = f'{DATA_DIR}/sbm'
+
+class ProteinsDataset(EgoDataset):
+    data_name = 'proteins'
+    raw_dir = f'{DATA_DIR}/proteins'

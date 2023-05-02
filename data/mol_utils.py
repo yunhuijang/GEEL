@@ -1,6 +1,4 @@
 import networkx as nx
-import pickle
-import pandas as pd
 from rdkit import Chem
 from tqdm import tqdm
 import torch
@@ -41,56 +39,6 @@ def add_self_loop(graph):
         node_label = graph.nodes[node]['label']
         graph.add_edge(node, node, label=node_label)
     return graph
-
-
-def generate_mol_string(dataset_name, order='C-M', is_small=False):
-    '''
-    Generate strings for each dataset / split (without degree (only 0-1))
-    '''
-    # load molecule graphs
-    col_dict = {'qm9': 'SMILES1', 'zinc': 'smiles'}
-    df = pd.read_csv(f'{DATA_DIR}/{dataset_name}/{dataset_name}.csv')
-    smiles = list(df[col_dict[dataset_name]])
-    if is_small:
-        smiles = smiles[:100]
-    smiles = [s for s in smiles if len(s)>1]
-    smiles = canonicalize_smiles(smiles)
-    splits = ['train', 'val', 'test']
-    train_smiles, val_smiles, test_smiles = train_val_test_split(smiles)
-    for s, split in zip([train_smiles, val_smiles, test_smiles], splits):
-        with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_smiles_{split}.txt', 'w') as f:
-            for string in s:
-                f.write(f'{string}\n')
-    graph_list = []
-    for smiles in train_smiles, val_smiles, test_smiles:
-        mols = smiles_to_mols(smiles)
-        graphs = mols_to_nx(mols)
-        graphs = [add_self_loop(graph) for graph in tqdm(graphs, 'Adding self-loops')]
-        num_rep = 1
-        # order graphs
-        order_func = ORDER_FUNCS[order]
-        total_graphs = graphs
-        total_ordered_graphs = order_graphs(total_graphs, num_repetitions=num_rep, order_func=order_func, seed=0, is_mol=True)
-        new_ordered_graphs = [map_new_ordered_graph(graph) for graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
-        graph_list.append(new_ordered_graphs)
-    
-    # write graphs
-    
-    
-    for graphs, split in zip(graph_list, splits):
-        weighted_adjs = [nx.attr_matrix(graph, edge_attr='label', rc_order=range(len(graph))) for graph in graphs]
-        trees = [adj_to_k2_tree(torch.Tensor(adj), return_tree=True, is_mol=True) for adj in tqdm(weighted_adjs, 'Generating tree from adj')]
-        strings = [tree_to_bfs_string_mol(tree, string_type='group') for tree in tqdm(trees, 'Generating strings from tree')]
-        if is_small:
-            file_name = f'{dataset_name}_small_str_{split}'
-        else:
-            file_name = f'{dataset_name}_str_{split}'
-        with open(f'{DATA_DIR}/{dataset_name}/{file_name}.txt', 'w') as f:
-            for string in strings:
-                f.write(f'{string}\n')
-        if split == 'test':
-            with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_test_graphs.pkl', 'wb') as f:
-                pickle.dump(graphs, f)
 
 def mols_to_nx(mols):
     nx_graphs = []

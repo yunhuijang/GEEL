@@ -4,20 +4,18 @@ from torch import LongTensor
 from torch import count_nonzero
 import math
 from collections import deque
-from time import time
 from treelib import Tree, Node
 from sklearn.model_selection import train_test_split
 from itertools import zip_longest
 import networkx as nx
 from treelib import Tree, Node
-import pickle
-from tqdm import tqdm
 import numpy as np
 from itertools import compress, islice
+import os
+from pathlib import Path
+
 
 from data.tokens import grouper_mol
-from data.orderings import ORDER_FUNCS, order_graphs
-
 
 
 DATA_DIR = "resource"
@@ -385,42 +383,6 @@ def map_tree_pe(tree):
             pe = torch.cat((current_pe, parent.data[:int(size-k**2)]))
             node.data = pe
     return tree
-
-def generate_string(dataset_name, order='C-M'):
-    '''
-    Generate strings for each dataset / split (without degree (only 0-1))
-    '''
-    # load molecule graphs
-    if dataset_name in ['planar', 'sbm']:
-        adjs, _, _, _, _, _, _, _ = torch.load(f'{DATA_DIR}/{dataset_name}/{dataset_name}.pt')
-        graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
-    else:
-        with open (f'{DATA_DIR}/{dataset_name}/{dataset_name}.pkl', 'rb') as f:
-            graphs = pickle.load(f)
-    train_graphs, val_graphs, test_graphs = train_val_test_split(graphs)
-    graph_list = []
-    for graphs in train_graphs, val_graphs, test_graphs:
-        num_rep = 1
-        # order graphs
-        order_func = ORDER_FUNCS[order]
-        total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, seed=0, is_mol=True)
-        new_ordered_graphs = [map_new_ordered_graph(graph) for graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
-        graph_list.append(new_ordered_graphs)
-    
-    # write graphs
-    splits = ['train', 'val', 'test']
-    
-    for graphs, split in zip(graph_list, splits):
-        adjs = [nx.adjacency_matrix(graph, range(len(graph))) for graph in graphs]
-        trees = [adj_to_k2_tree(torch.Tensor(adj.todense()), return_tree=True, is_mol=False) for adj in tqdm(adjs, 'Generating tree from adj')]
-        strings = [tree_to_bfs_string(tree, string_type='group') for tree in tqdm(trees, 'Generating strings from tree')]
-        file_name = f'{dataset_name}_str_{split}'
-        with open(f'{DATA_DIR}/{dataset_name}/{order}/{file_name}.txt', 'w') as f:
-            for string in strings:
-                f.write(f'{string}\n')
-        if split == 'test':
-            with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_test_graphs.pkl', 'wb') as f:
-                pickle.dump(graphs, f)
                 
 def map_new_ordered_graph(ordered_graph):
     '''
@@ -557,3 +519,21 @@ def remove_redundant(input_string):
     final_string_cut_list = [list(islice(pos_list_iter, i)) for i in cut_size_list]
     
     return [''.join(l) for l in final_string_cut_list]
+
+def get_max_len(data_name, order='C-M'):
+    total_strings = []
+    for split in ['train', 'test', 'val']:
+        string_path = os.path.join(DATA_DIR, f"{data_name}/{order}/{data_name}_str_{split}.txt")
+        strings = Path(string_path).read_text(encoding="utf=8").splitlines()
+        
+        total_strings.extend(strings)
+    
+    red_list = [remove_redundant(string) for string in total_strings]
+    # red_strings = [''.join(red) for red in red_list]
+    
+    max_len = max([len(string) for string in total_strings])
+    group_max_len = max_len / 4
+    red_max_len = max([len(string) for string in red_list])
+    
+    return max_len, group_max_len, red_max_len
+    
