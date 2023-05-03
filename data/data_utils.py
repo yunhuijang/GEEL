@@ -13,6 +13,7 @@ import numpy as np
 from itertools import compress, islice
 import os
 from pathlib import Path
+import json
 
 
 from data.tokens import grouper_mol
@@ -351,11 +352,22 @@ def check_validity(string):
     
 def train_val_test_split(
     data: list,
+    data_name='GDSS_com',
     train_size: float = 0.7, val_size: float = 0.1, test_size: float = 0.2,
     seed: int = 42,
 ):
-    train_val, test = train_test_split(data, train_size=train_size + test_size, random_state=seed)
-    train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed)
+    if data_name in ['qm9', 'zinc']:
+        with open(os.path.join(DATA_DIR, f'{data_name}/valid_idx_{data_name}.json')) as f:
+            test_idx = json.load(f)
+        test_idx = test_idx['valid_idxs']
+        test_idx = [int(i) for i in test_idx]
+        train_idx = [i for i in range(len(data)) if i not in test_idx]
+        test = [data[i] for i in test_idx]
+        train_val = [data[i] for i in train_idx]
+        train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
+    else:
+        train_val, test = train_test_split(data, train_size=train_size + val_size, shuffle=False)
+    train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
     return train, val, test
 
 def adj_to_graph(adj, is_cuda=False):

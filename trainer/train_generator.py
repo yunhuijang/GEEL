@@ -10,7 +10,7 @@ import pickle
 import os
 from moses.metrics.metrics import get_all_metrics
 
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
 from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity, generate_final_tree_red, fix_symmetry, generate_initial_tree_red
 from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
@@ -42,7 +42,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'qm9': QM9Dataset,
             'zinc': ZINCDataset,
             'planar': PlanarDataset,
-            'sbm': SBMDataset
+            'sbm': SBMDataset,
+            'proteins': ProteinsDataset
         }.get(hparams.dataset_name)
         if hparams.dataset_name in ['qm9', 'zinc']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
@@ -118,9 +119,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
             elif self.hparams.string_type in ['bfs-red', 'group-red']:
                 valid_string_list = [string for string in string_list if len(string)>0]
-                sampled_trees_init = [generate_initial_tree_red(string) for string in valid_string_list]
-                sampled_trees_init = [tree for tree in sampled_trees_init if check_tree_validity(tree)]
-                sampled_trees = [generate_final_tree_red(tree) for tree in tqdm(sampled_trees_init, "Sampling: converting string to tree")]
+                sampled_trees = [generate_initial_tree_red(string) for string in valid_string_list]
+                valid_sampled_trees = [tree for tree in sampled_trees if check_tree_validity(tree)]
+                valid_sampled_trees = [generate_final_tree_red(tree) for tree in tqdm(valid_sampled_trees, "Sampling: converting string to tree")]
                 
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string

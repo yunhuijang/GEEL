@@ -28,7 +28,7 @@ def generate_string(dataset_name, order='C-M'):
     else:
         with open (f'{DATA_DIR}/{dataset_name}/{dataset_name}.pkl', 'rb') as f:
             graphs = pickle.load(f)
-    train_graphs, val_graphs, test_graphs = train_val_test_split(graphs)
+    train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, dataset_name)
     graph_list = []
     for graphs in train_graphs, val_graphs, test_graphs:
         num_rep = 1
@@ -66,7 +66,7 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
     smiles = [s for s in smiles if len(s)>1]
     smiles = canonicalize_smiles(smiles)
     splits = ['train', 'val', 'test']
-    train_smiles, val_smiles, test_smiles = train_val_test_split(smiles)
+    train_smiles, val_smiles, test_smiles = train_val_test_split(smiles, dataset_name)
     for s, split in zip([train_smiles, val_smiles, test_smiles], splits):
         with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_smiles_{split}.txt', 'w') as f:
             for string in s:
