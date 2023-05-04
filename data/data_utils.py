@@ -498,21 +498,30 @@ def map_deg_string(string):
             
     return ''.join(new_string) + left
 
-def remove_redundant(input_string):
+def remove_redundant(input_string, is_mol=False):
     string = input_string[0:4]
     pos_list = [1,2,3,4]
     str_pos_queue = deque([(s, p) for s, p in zip(string, pos_list)])
-    for i in np.arange(4,len(input_string),4):
-        cur_string = input_string[i:i+4]
+    if is_mol:
+        group_list = list(grouper_mol(input_string))
+    else:
+        group_list = list(grouper(4, input_string))
+    for cur_string in [''.join(token) for token in group_list][1:]:
+        if cur_string == 'C555':
+            print(input_string)
+            assert False
         cur_parent, cur_parent_pos = str_pos_queue.popleft()
         # if value is 0, it cannot be parent node -> skip
         while((cur_parent == '0') and (len(str_pos_queue) > 0)):
             cur_parent, cur_parent_pos = str_pos_queue.popleft()
         # i: order of the child node in the same parent
-        cur_pos = [cur_parent_pos*10+i for i in range(1,1+len(cur_string))]
+        cur_pos = [cur_parent_pos*10+i for i in range(1,5)]
         # pos_list: final position of each node
         pos_list.extend(cur_pos)
-        str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
+        if is_mol:
+            str_pos_queue.extend([(s, c) for s, c in zip(grouper_mol(cur_string)[0], cur_pos)])
+        else:
+            str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
     
     pos_list = [str(pos) for pos in pos_list]
     # find positions ends with 2 including only 1 and 4
@@ -526,8 +535,10 @@ def remove_redundant(input_string):
     cut_list_2.extend(cut_list[:-1])
     cut_size_list = [i - j for i, j in zip(cut_list , cut_list_2)]
     cut_size_list[0] += 1
-    
-    final_string_list = list(compress([*input_string], remain_pos_index))
+    if is_mol:
+        final_string_list = list(compress([item for sublist in grouper_mol(input_string) for item in sublist], remain_pos_index))
+    else:
+        final_string_list = list(compress([*input_string], remain_pos_index))
 
     pos_list_iter = iter(final_string_list)
     final_string_cut_list = [list(islice(pos_list_iter, i)) for i in cut_size_list]
