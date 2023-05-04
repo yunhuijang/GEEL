@@ -182,3 +182,8 @@ def valid_mol_can_with_seg(m, largest_connected_comp=True):
     else:
         mol = Chem.MolFromSmiles(sm)
     return mol
+
+def fix_symmetry_mol(weighted_adj):
+    sym_adj = torch.tril(weighted_adj) + torch.tril(weighted_adj).T
+    sym_adj[range(len(sym_adj)), range(len(sym_adj))] = sym_adj.diagonal()/2
+    return sym_adj

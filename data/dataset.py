@@ -2,8 +2,11 @@ import torch
 from torch.utils.data import Dataset
 from pathlib import Path
 import os
+import pickle
+import networkx as nx
+from tqdm import tqdm
 
-from data.data_utils import map_deg_string, remove_redundant
+from data.data_utils import map_deg_string, remove_redundant, adj_to_graph
 from data.tokens import tokenize
 
 
@@ -16,14 +19,25 @@ class EgoDataset(Dataset):
         self.string_type = string_type
         self.is_tree = is_tree
         self.order = order
-        string_path = os.path.join(self.raw_dir, f"{self.order}/{self.data_name}_str_{split}.txt")
-        self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
+        if self.string_type in ['adj', 'adj_red']:
+            if self.data_name in ['planar', 'sbm']:
+                adjs, _, _, _, _, _, _, _ = torch.load(f'{DATA_DIR}/{self.data_name}/{self.data_name}.pt')
+                graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
+            else:
+                with open (f'{DATA_DIR}/{self.data_name}/{self.data_name}.pkl', 'rb') as f:
+                    graphs = pickle.load(f)
+            
+            adjs = [nx.adjacency_matrix()]
+            self.strings = '0'
+        else:
+            string_path = os.path.join(self.raw_dir, f"{self.order}/{self.data_name}_str_{split}.txt")
+            self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
         # use tree degree information
         if self.string_type in ['bfs-deg', 'bfs-deg-group']:
             self.strings = [map_deg_string(string) for string in self.strings]
         # remove redundant
         if 'red' in self.string_type:
-            self.strings = [remove_redundant(string) for string in self.strings]
+            self.strings = [remove_redundant(string) for string in tqdm(self.strings, 'Removing redundancy')]
     
     def __len__(self):
         return len(self.strings)

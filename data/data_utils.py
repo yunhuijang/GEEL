@@ -359,7 +359,8 @@ def train_val_test_split(
     if data_name in ['qm9', 'zinc']:
         with open(os.path.join(DATA_DIR, f'{data_name}/valid_idx_{data_name}.json')) as f:
             test_idx = json.load(f)
-        test_idx = test_idx['valid_idxs']
+        if data_name == 'qm9':
+            test_idx = test_idx['valid_idxs']
         test_idx = [int(i) for i in test_idx]
         train_idx = [i for i in range(len(data)) if i not in test_idx]
         test = [data[i] for i in test_idx]
@@ -480,6 +481,7 @@ def add_zero_to_identifier(tree):
 def fix_symmetry(adj):
     sym_adj = torch.tril(adj) + torch.tril(adj).T
     return torch.where(sym_adj>0, 1, 0)
+
 
 def map_deg_string(string):
     new_string = []

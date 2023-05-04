@@ -68,9 +68,14 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
     splits = ['train', 'val', 'test']
     train_smiles, val_smiles, test_smiles = train_val_test_split(smiles, dataset_name)
     for s, split in zip([train_smiles, val_smiles, test_smiles], splits):
-        with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_smiles_{split}.txt', 'w') as f:
-            for string in s:
-                f.write(f'{string}\n')
+        if is_small:
+            with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_small_smiles_{split}.txt', 'w') as f:
+                for string in s:
+                    f.write(f'{string}\n')
+        else:
+            with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_smiles_{split}.txt', 'w') as f:
+                for string in s:
+                    f.write(f'{string}\n')
     graph_list = []
     for smiles in train_smiles, val_smiles, test_smiles:
         mols = smiles_to_mols(smiles)
@@ -94,12 +99,16 @@ def generate_mol_string(dataset_name, order='C-M', is_small=False):
             file_name = f'{dataset_name}_small_str_{split}'
         else:
             file_name = f'{dataset_name}_str_{split}'
-        with open(f'{DATA_DIR}/{dataset_name}/{file_name}.txt', 'w') as f:
+        with open(f'{DATA_DIR}/{dataset_name}/{order}/{file_name}.txt', 'w') as f:
             for string in strings:
                 f.write(f'{string}\n')
         if split == 'test':
-            with open(f'{DATA_DIR}/{dataset_name}/{dataset_name}_test_graphs.pkl', 'wb') as f:
-                pickle.dump(graphs, f)
+            if is_small:
+                with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_small_test_graphs.pkl', 'wb') as f:
+                    pickle.dump(graphs, f)
+            else:
+                with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_test_graphs.pkl', 'wb') as f:
+                    pickle.dump(graphs, f)
                 
 # codes adapted from https://github.com/KarolisMart/SPECTRE
 def load_proteins_data(data_dir):
