@@ -31,10 +31,10 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             max_len=hparams.max_len,
             string_type=hparams.string_type,
             tree_pos=hparams.tree_pos,
-            # tree_pos=True,
             pos_type=hparams.pos_type,
-            learn_pos=hparams.learn_pos
-            # learn_pos=True
+            learn_pos=hparams.learn_pos,
+            # abs_pos=True
+            abs_pos=hparams.abs_pos
         )
 
     ### 
@@ -93,7 +93,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
-        parser.add_argument("--max_epochs", type=int, default=4)
+        parser.add_argument("--max_epochs", type=int, default=20)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='string')
@@ -106,11 +106,12 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--num_layers", type=int, default=3)
         parser.add_argument("--nhead", type=int, default=8)
         parser.add_argument("--dim_feedforward", type=int, default=512)
-        parser.add_argument("--input_dropout", type=int, default=0.0)
+        parser.add_argument("--input_dropout", type=float, default=0.0)
         parser.add_argument("--tree_pos", action="store_true")
-        parser.add_argument("--pos_type", type=str, default='group-emb')
+        parser.add_argument("--pos_type", type=str, default='emb')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
+        parser.add_argument("--abs_pos", action="store_true")
 
         return parser
 

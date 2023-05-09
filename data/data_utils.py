@@ -1,6 +1,7 @@
 import torch
 from torch.nn import ZeroPad2d
 from torch import LongTensor
+from torch.utils.data import random_split
 from torch import count_nonzero
 import math
 from collections import deque
@@ -357,6 +358,7 @@ def train_val_test_split(
     seed: int = 42,
 ):
     if data_name in ['qm9', 'zinc']:
+        # code adpated from https://github.com/harryjo97/GDSS
         with open(os.path.join(DATA_DIR, f'{data_name}/valid_idx_{data_name}.json')) as f:
             test_idx = json.load(f)
         if data_name == 'qm9':
@@ -366,9 +368,15 @@ def train_val_test_split(
         test = [data[i] for i in test_idx]
         train_val = [data[i] for i in train_idx]
         train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
+    elif data_name in ['planar', 'sbm', 'proteins']:
+        # code adapted from https://github.com/KarolisMart/SPECTRE
+        test_len = int(round(len(data)*0.2))
+        train_len = int(round((len(data) - test_len)*0.8))
+        val_len = len(data) - train_len - test_len
+        train, val, test = random_split(data, [train_len, val_len, test_len], generator=torch.Generator().manual_seed(1234))
     else:
         train_val, test = train_test_split(data, train_size=train_size + val_size, shuffle=False)
-    train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
+        train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
     return train, val, test
 
 def adj_to_graph(adj, is_cuda=False):
@@ -416,7 +424,7 @@ def generate_final_tree_red(tree):
     return final_tree
 
 def generate_initial_tree_red(string_token_list):
-    node_groups = [tuple([*s]) for s in string_token_list]
+    node_groups = [tuple(grouper_mol(string)[0]) for string in string_token_list]
     tree = Tree()
     tree.create_node("root", "0-0-0")
     parent_node = tree["0-0-0"]

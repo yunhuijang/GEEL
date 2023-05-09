@@ -35,6 +35,21 @@ class TokenEmbedding(nn.Module):
             return x+pe_stack
         return x
 
+class AbsolutePositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=8000):
+        super().__init__()
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, 1, d_model)
+        pe[:, 0, 0::2] = torch.sin(position * div_term)
+        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        # x: shape [batch_size, seq_len, emb_size (pad_vocab_size)]
+        x = x + self.pe[:x.size(1), :].transpose(0,1)
+        return x
+
 class TreePositionalEncoding(nn.Module):
     def __init__(self, d_model, token2id, pos_type, max_len):
         super().__init__()
@@ -179,11 +194,10 @@ class TransGenerator(nn.Module):
     '''
     without tree information (only string)
     '''
-    # TODO: add string positional encodings (absolute encoding, etc.)
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos
+        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos, abs_pos
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
@@ -194,7 +208,11 @@ class TransGenerator(nn.Module):
         self.tree_pos = tree_pos
         self.pos_type = pos_type
         self.learn_pos = learn_pos
+        self.abs_pos = abs_pos
         self.max_len = max_len
+        
+        if self.abs_pos:
+            self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
         if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red', 'qm9-red', 'zinc-red']:
             if self.tree_pos:
@@ -227,12 +245,15 @@ class TransGenerator(nn.Module):
         out = self.token_embedding_layer(sequences)
         if self.tree_pos:
             out = self.positional_encoding(out, sequences)
+        if self.abs_pos:
+            out = self.positional_encoding(out)
         out = self.input_dropout(out)
 
 
-        if self.tree_pos:
+        if self.tree_pos or self.abs_pos:
             mask = torch.zeros(batch_size, sequence_len, sequence_len, self.nhead, device=out.device)
         else:
+            # relational positional encoding
             distance_squares = torch.abs(torch.arange(sequence_len).unsqueeze(0) - torch.arange(sequence_len).unsqueeze(1))
             distance_squares[distance_squares > self.max_len] = self.max_len
             distance_squares = distance_squares.unsqueeze(0).repeat(batch_size, 1, 1)

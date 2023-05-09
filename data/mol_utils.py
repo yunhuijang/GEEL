@@ -59,7 +59,8 @@ def mols_to_nx(mols):
     return nx_graphs
 
 def check_adj_validity_mol(adj):
-    # np.fill_diagonal(check_adj, 0)
+    if adj.size == 0:
+        return None
     non_padded_index = max(max(np.argwhere(adj.any(axis=0)))[0], max(np.argwhere(adj.any(axis=1)))[0])+1
     x = adj.diagonal()[:non_padded_index]
     # check if diagonal elements are all node types and all diagonal elements are full / not proper bond type

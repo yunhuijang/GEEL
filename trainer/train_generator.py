@@ -12,7 +12,7 @@ from moses.metrics.metrics import get_all_metrics
 
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
 from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity, generate_final_tree_red, fix_symmetry, generate_initial_tree_red
-from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol
+from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
 from model.lstm_generator import LSTMGenerator
@@ -48,8 +48,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         if hparams.dataset_name in ['qm9', 'zinc']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
                 self.train_smiles = f.readlines()
+                self.train_smiles = canonicalize_smiles(self.train_smiles)
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
                 self.test_smiles = f.readlines()
+                self.test_smiles = canonicalize_smiles(self.test_smiles)
         with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
             self.test_graphs = pickle.load(f)
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, self.order, is_tree=hparams.tree_pos)
@@ -113,7 +115,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group', 'qm9', 'zinc']:
                 valid_string_list = [string for string in string_list if len(string)>0 and len(string)%4 == 0]
                 is_zinc = False
-                if self.hparams.string_type == 'zinc':
+                if self.hparams.string_type in ['zinc', 'zinc-red']:
                     is_zinc = True
                 sampled_trees = [bfs_string_to_tree(string, is_zinc) 
                                 for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
