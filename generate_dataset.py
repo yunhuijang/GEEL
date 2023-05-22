@@ -13,8 +13,8 @@ DATA_DIR='gcg/resource'
 
 dataset = ['GDSS_com', 'GDSS_ego', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm']
 for data in dataset:
-    generate_string(data)
+    generate_string(data, order='C-M')
 
-mol_dataset = ['qm9', 'zinc']
-for data in mol_dataset:
-    generate_mol_string(data)
+# mol_dataset = ['qm9', 'zinc']
+# for data in mol_dataset:
+#     generate_mol_string(data)

@@ -87,7 +87,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--replicate", type=int, default=0)
         #
         parser.add_argument("--emb_size", type=int, default=512)
-        parser.add_argument("--dropout", type=int, default=0.1)
+        parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.002)
         
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
@@ -112,6 +112,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--abs_pos", action="store_true")
+        
+        parser.add_argument("--k", type=int, default=2)
 
         return parser
 
@@ -123,7 +125,7 @@ if __name__ == "__main__":
     
     pos_type_dict = {'emb': 'tpe', 'group-emb': 'gtpe'}
     
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{pos_type_dict[hparams.pos_type]}', 
+    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{pos_type_dict[hparams.pos_type]}-{hparams.k}', 
                                project='k2g', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     
     wandb.config.update(hparams)

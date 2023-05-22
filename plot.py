@@ -10,13 +10,20 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecatio
 
 
 options = {
-    'node_size': 2,
+    'node_size': 5,
     'edge_color' : 'black',
-    'linewidths': 1,
-    'width': 0.5
+    'linewidths': 0.8,
+    'width': 1.2
 }
 
-def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0):
+options_one = {
+    'node_size': 15,
+    'edge_color' : 'black',
+    'linewidths': 1,
+    'width': 1.2
+}
+
+def plot_graphs_list(graphs, title='title', max_num=6, save_dir=None, N=0):
     batch_size = len(graphs)
     max_num = min(batch_size, max_num)
     img_c = int(math.ceil(np.sqrt(max_num)))
@@ -43,14 +50,31 @@ def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0):
         pos = nx.spring_layout(G)
         nx.draw(G, pos, with_labels=False, **options)
         ax.title.set_text(title_str)
-    figure.suptitle(title)
+    # figure.suptitle(title)
 
     save_fig(save_dir=save_dir, title=title)
     
     return 
 
+def plot_one_graph(graph, title, save_dir):
+    figure = plt.figure()
 
-def save_fig(save_dir=None, title='fig', dpi=300):
+    G = graph
+    G.remove_nodes_from(list(nx.isolates(G)))
+    e = G.number_of_edges()
+    v = G.number_of_nodes()
+    l = nx.number_of_selfloops(G)
+
+    fig, ax = plt.subplots(1,1, figsize=(3,3))
+    plt.figure(figsize=(5,5))
+    pos = nx.spring_layout(G)
+    nx.draw(G, pos, with_labels=False, **options_one)
+    # ax.title.set_text(title_str)
+    # figure.suptitle(title)
+
+    save_fig(save_dir=save_dir, title=title)
+
+def save_fig(save_dir=None, title='fig', dpi=1000):
     plt.tight_layout()
     plt.subplots_adjust(top=0.85)
     if save_dir is None:

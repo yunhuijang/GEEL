@@ -171,7 +171,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 else:
                     tree_validity = 0
                 wandb.log({"tree-validity": tree_validity})
-                valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
+                # valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
                 adjs = [fix_symmetry(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
                 sampled_graphs = [adj_to_graph(adj) for adj in adjs]
                 save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)

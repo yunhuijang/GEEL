@@ -42,13 +42,13 @@ def generate_string(dataset_name, order='C-M'):
     splits = ['train', 'val', 'test']
     
     for graphs, split in zip(graph_list, splits):
-        adjs = [nx.adjacency_matrix(graph, range(len(graph))) for graph in graphs]
-        trees = [adj_to_k2_tree(torch.Tensor(adj.todense()), return_tree=True, is_mol=False) for adj in tqdm(adjs, 'Generating tree from adj')]
-        strings = [tree_to_bfs_string(tree, string_type='group') for tree in tqdm(trees, 'Generating strings from tree')]
-        file_name = f'{dataset_name}_str_{split}'
-        with open(f'{DATA_DIR}/{dataset_name}/{order}/{file_name}.txt', 'w') as f:
-            for string in strings:
-                f.write(f'{string}\n')
+        # adjs = [nx.adjacency_matrix(graph, range(len(graph))) for graph in graphs]
+        # trees = [adj_to_k2_tree(torch.Tensor(adj.todense()), return_tree=True, is_mol=False) for adj in tqdm(adjs, 'Generating tree from adj')]
+        # strings = [tree_to_bfs_string(tree, string_type='group') for tree in tqdm(trees, 'Generating strings from tree')]
+        # file_name = f'{dataset_name}_str_{split}'
+        # with open(f'{DATA_DIR}/{dataset_name}/{order}/{file_name}.txt', 'w') as f:
+        #     for string in strings:
+        #         f.write(f'{string}\n')
         if split == 'test':
             with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_test_graphs.pkl', 'wb') as f:
                 pickle.dump(graphs, f)
