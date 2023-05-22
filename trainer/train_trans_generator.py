@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     trainer = pl.Trainer(
         devices=1,
-        accelerator='cpu',
+        accelerator='gpu',
         default_root_dir="/resource/log/",
         max_epochs=hparams.max_epochs,
         gradient_clip_val=hparams.gradient_clip_val,

@@ -457,12 +457,45 @@ def generate_initial_tree_red(string_token_list, k=2):
     
     return tree
 
-def find_new_identifier(node_id, num=10):
+def find_new_identifier(node_id, index, is_dup=1):
     split = node_id.split('-')
+    # k = 2
+    if index == 1:
+        num = 1
+        num *= is_dup
+        cur_pre_identifier = split[0] + '-' + split[1]
+    # k = 3
+    elif index == 2:
+        num = 2
+        num *= is_dup
+        cur_pre_identifier = split[0] + '-' + split[1]
+    elif index == 4:
+        num = 1
+        num *= is_dup
+        cur_pre_identifier = split[0] + '-' + str(int(split[1])-2)
+    elif index == 5:
+        num = 1
+        num *= is_dup
+        cur_pre_identifier = split[0] + '-' + str(int(split[1])-1)
+    else:
+        num = is_dup
+        cur_pre_identifier = split[0] + '-' + split[1]
+    
     new_last_identifier = int(split[2])-num
-    cur_pre_identifier = split[0] + '-' + split[1]
+    # cur_pre_identifier = split[0] + '-' + split[1]
     return cur_pre_identifier + '-' + str(new_last_identifier)
 
+def get_child_index(k):
+    indices = []
+    c = 0
+    for i in range(k+1):
+        for j in range(1,i+1):
+            c=c+1
+            if j != i:
+                indices.append(c)
+    return indices
+    
+    
 def add_symmetry_to_tree(tree, k):
     k_square = k**2
     bfs_node_list = [tree[node] for node in tree.expand_tree(mode=tree.WIDTH, key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])))]
@@ -470,19 +503,22 @@ def add_symmetry_to_tree(tree, k):
     for node in node_list:
         child_nodes = get_children_identifier(node, tree)
         if len(child_nodes) < k_square:
-            copy_node = tree.get_node(child_nodes[1])
-            new_node = Node(tag=copy_node.tag, identifier=find_new_identifier(copy_node.identifier, 1))
-            subtree = Tree(tree.subtree(child_nodes[1]), deep=True)
-            new_tree = Tree(subtree, deep=True)
-            if len(subtree) > 1:
-                for nid, n in sorted(subtree.nodes.items()):
-                    count_dup = len([key for key in subtree.nodes.keys() 
-                                     if (key.split('-')[0] == nid.split('-')[0]) and (key.split('-')[1] == nid.split('-')[1])])
-                    new_iden = find_new_identifier(nid, count_dup*10)
-                    new_tree.update_node(nid, identifier=new_iden)
-                tree.paste(node.identifier, new_tree)
-            else:
-                tree.add_node(new_node, parent=node)
+            postfixes = get_child_index(k)
+	
+            for index in postfixes:
+                copy_node = tree.get_node(child_nodes[int(index)-1])
+                new_node = Node(tag=copy_node.tag, identifier=find_new_identifier(copy_node.identifier, index))
+                subtree = Tree(tree.subtree(child_nodes[int(index)-1]), deep=True)
+                new_tree = Tree(subtree, deep=True)
+                if len(subtree) > 1:
+                    for nid, n in sorted(subtree.nodes.items(), key=lambda x: (int(x[0].split('-')[0]), int(x[0].split('-')[1]), int(x[0].split('-')[2]))):
+                        count_dup = len([key for key in subtree.nodes.keys() 
+                                        if (key.split('-')[0] == nid.split('-')[0]) and (key.split('-')[1] == nid.split('-')[1])])
+                        new_iden = find_new_identifier(nid, index, count_dup*100)
+                        new_tree.update_node(nid, identifier=new_iden)
+                    tree.paste(node.identifier, new_tree)
+                else:
+                    tree.add_node(new_node, parent=node)
             
     return tree
 
@@ -539,7 +575,9 @@ def remove_redundant(input_string, is_mol=False, k=2):
             str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
     
     pos_list = [str(pos) for pos in pos_list]
+    # prefix: diagonal
     prefixes = [str((i-1)*k + i) for i in range(1,k+1)]
+    # posfix: upper diagonal
     postfixes = []
     for i in range(1,k+1):
         for j in range(i+1, k+1):

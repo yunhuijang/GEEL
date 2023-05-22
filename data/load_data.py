@@ -49,9 +49,9 @@ def generate_string(dataset_name, order='C-M', k=2):
         with open(f'{DATA_DIR}/{dataset_name}/{order}/{file_name}_{k}.txt', 'w') as f:
             for string in strings:
                 f.write(f'{string}\n')
-        # if split == 'test':
-        #     with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_test_graphs.pkl', 'wb') as f:
-        #         pickle.dump(graphs, f)
+        if split == 'test':
+            with open(f'{DATA_DIR}/{dataset_name}/{order}/{dataset_name}_test_graphs.pkl', 'wb') as f:
+                pickle.dump(graphs, f)
                 
 def generate_mol_string(dataset_name, order='C-M', is_small=False):
     '''

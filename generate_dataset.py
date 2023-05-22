@@ -10,10 +10,10 @@ from data.load_data import generate_string
 
 DATA_DIR='resource'
 
-dataset = ['GDSS_com', 'planar']
+dataset = ['GDSS_com']
 for data in dataset:
     generate_string(data, order='C-M', k=3)
-    generate_string(data, order='C-M', k=4)
+    # generate_string(data, order='C-M', k=4)
 
 # mol_dataset = ['qm9', 'zinc']
 # for data in mol_dataset:
