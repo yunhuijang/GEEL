@@ -23,7 +23,7 @@ options_one = {
     'width': 1.2
 }
 
-def plot_graphs_list(graphs, title='title', max_num=6, save_dir=None, N=0):
+def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0):
     batch_size = len(graphs)
     max_num = min(batch_size, max_num)
     img_c = int(math.ceil(np.sqrt(max_num)))

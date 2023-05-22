@@ -46,12 +46,13 @@ def get_sort_key(node_id):
         return (int(node_id.split('-')[0]), int(node_id.split('-')[1]), int(node_id.split('-')[2]))
     else:
         return (int(node_id.split('-')[0]), int(node_id.split('-')[1]))
-def nearest_power_2(N):
-    a = int(math.log2(N)) 
-    if 2**a == N:
+    
+def nearest_power(N, base=2):
+    a = int(math.log(N, base)) 
+    if base**a == N:
         return N
 
-    return 2**(a + 1)
+    return base**(a + 1)
 
 def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False):
     # TODO: generalize for other k
@@ -59,26 +60,32 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
         adj[adj > 0] = 1
     n_org_nodes = adj.shape[0]
     # add padding (proper size for k)
-    n_nodes = nearest_power_2(n_org_nodes)
-    
+    n_nodes = nearest_power(n_org_nodes, k)
+    k_square = k**2
     padder = ZeroPad2d((0, n_nodes-n_org_nodes, 0, n_nodes-n_org_nodes))
     padded_adj = padder(adj)
-    k_sqrt = math.sqrt(k)
-    total_level = int(math.log(n_nodes, k_sqrt))
+    total_level = int(math.log(n_nodes, k))
     tree_list = []
     leaf_list = []
     tree = Tree()
     # add root node
     tree.create_node("root", "0")
     tree_key_list = deque([])
-    slice_size = int(n_nodes / k_sqrt)
+    slice_size = int(n_nodes / k)
     # slice matrices 
-    sliced_adjs = deque([padded_adj[:slice_size, :slice_size], padded_adj[:slice_size, slice_size:], 
-            padded_adj[slice_size:, :slice_size], padded_adj[slice_size:, slice_size:]])
+    start_index = range(0,n_nodes,slice_size)
+    end_index = range(slice_size,n_nodes+1,slice_size)
+    slices = []
+    for row_start, row_end in zip(start_index, end_index):
+        for col_start, col_end in zip(start_index, end_index):
+            slices.append(padded_adj[row_start:row_end, col_start:col_end])
+    
+    # slices = [padded_adj[:slice_size, :slice_size], padded_adj[:slice_size, slice_size:], padded_adj[slice_size:, :slice_size], padded_adj[slice_size:, slice_size:]]
+    sliced_adjs = deque(slices)
     sliced_adjs_is_zero = LongTensor([int(count_nonzero(adj)>0) for adj in sliced_adjs])
     tree_list.append(sliced_adjs_is_zero)
     # molecule + only leaf
-    if is_mol and adj.shape[0] == 2:
+    if is_mol and adj.shape[0] == k:
         tree_element_list = deque(list(map(int, torch.flatten(adj).tolist())))
     else:
         tree_element_list = deque(sliced_adjs_is_zero)
@@ -89,13 +96,13 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
     
     while (slice_size != 1):
         n_nodes = sliced_adjs[0].shape[0]
-        if n_nodes == 2:
+        if n_nodes == k:
             if is_wholetree:
-                leaf_list = [adj.reshape(4,) for adj in sliced_adjs]
+                leaf_list = [adj.reshape(k_square,) for adj in sliced_adjs]
             else:
-                leaf_list = [adj.reshape(4,) for adj in sliced_adjs if count_nonzero(adj)>0]
+                leaf_list = [adj.reshape(k_square,) for adj in sliced_adjs if count_nonzero(adj)>0]
             break
-        slice_size = int(n_nodes / k_sqrt)
+        slice_size = int(n_nodes / k)
         target_adj = sliced_adjs.popleft()
         target_adj_size = target_adj.shape[0]
         if return_tree:
@@ -105,8 +112,14 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
             if count_nonzero(target_adj) == 0:
                 continue
         # generate tree_list and leaf_list
-        new_sliced_adjs = [target_adj[:slice_size, :slice_size], target_adj[:slice_size, slice_size:], 
-                target_adj[slice_size:, :slice_size], target_adj[slice_size:, slice_size:]]
+        new_sliced_adjs = []
+        start_index = range(0,n_nodes,slice_size)
+        end_index = range(slice_size,n_nodes+1,slice_size)
+        for row_start, row_end in zip(start_index, end_index):
+            for col_start, col_end in zip(start_index, end_index):
+                new_sliced_adjs.append(target_adj[row_start:row_end, col_start:col_end])
+        # new_sliced_adjs = [target_adj[:slice_size, :slice_size], target_adj[:slice_size, slice_size:], 
+        #         target_adj[slice_size:, :slice_size], target_adj[slice_size:, slice_size:]]
         new_sliced_adjs_is_zero = LongTensor([int(count_nonzero(adj)>0) for adj in new_sliced_adjs])
         sliced_adjs.extend(new_sliced_adjs)
         tree_list.append(new_sliced_adjs_is_zero)
@@ -114,7 +127,7 @@ def adj_to_k2_tree(adj, return_tree=False, is_wholetree=False, k=4, is_mol=False
         if return_tree:
             # generate tree
             tree_element_list.extend(new_sliced_adjs_is_zero)
-            cur_level = int(total_level - math.log(target_adj_size, k_sqrt) + 1)
+            cur_level = int(total_level - math.log(target_adj_size, k) + 1)
             cur_level_key_list = [int(key.split('-')[1]) for key in tree_key_list if int(key.split('-')[0]) == cur_level]
             if len(cur_level_key_list) > 0:
                 key_starting_point = max(cur_level_key_list)
@@ -147,12 +160,11 @@ def check_tree_validity(tree):
     else:
         return False
 
-def tree_to_adj(tree):
+def tree_to_adj(tree, k=2):
     '''
     convert k2 tree to adjacency matrix
     '''
-    tree = map_starting_point(tree)
-    k = get_k(tree)
+    tree = map_starting_point(tree, k)
     depth = tree.depth()
     leaves = [leaf for leaf in tree.leaves() if leaf.tag != '0']
     one_data_points = [leaf.data for leaf in leaves]
@@ -167,7 +179,7 @@ def tree_to_adj(tree):
     return adj
 
 
-def map_starting_point(tree):
+def map_starting_point(tree, k):
     '''
     map starting points for each elements in tree (to convert adjacency matrix)
     '''
@@ -189,7 +201,7 @@ def map_starting_point(tree):
         matrix_size = k**tree_depth
         adding_value = int(matrix_size/(k**level))
         parent_starting_point = parent.data
-        node.data = (parent_starting_point[0]+adding_value*int(index/2), parent_starting_point[1]+adding_value*int(index%2))
+        node.data = (parent_starting_point[0]+adding_value*int(index/k), parent_starting_point[1]+adding_value*int(index%k))
             
     return tree
 
@@ -249,10 +261,8 @@ def map_all_child_deg(node, tree):
 def tree_to_bfs_string(tree, string_type='bfs'):
     bfs_node_list = [tree[node] for node in tree.expand_tree(mode=tree.WIDTH,
                                                              key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])))][1:]
-    if string_type in ['bfs', 'group', 'bfs-tri']:
+    if string_type in ['bfs', 'group', 'bfs-tri', 'group-red', 'group-red-3']:
         bfs_value_list = [str(int(node.tag)) for node in bfs_node_list]
-        if string_type == 'bfs-tri':
-            bfs_value_list = [bfs_value_list[i] for i in range(len(bfs_value_list)) if i % 4 !=2]
     elif string_type in ['bfs-deg', 'bfs-deg-group']:
         bfs_value_list = [map_child_deg(node, tree) for node in bfs_node_list]
     
@@ -295,7 +305,8 @@ def grouper(n, iterable, fillvalue=None):
     args = [iter(iterable)] * n
     return zip_longest(fillvalue=fillvalue, *args)
 
-def bfs_string_to_tree(string, is_zinc=False):
+def bfs_string_to_tree(string, is_zinc=False, k=2):
+    k_square = k**2
     tree = Tree()
     tree.create_node("root", "0")
     parent_node = tree["0"]
@@ -303,7 +314,7 @@ def bfs_string_to_tree(string, is_zinc=False):
     if is_zinc:
         node_groups = grouper_mol(string)
     else:
-        node_groups = grouper(4, string)
+        node_groups = grouper(k_square, string)
     for node_1, node_2, node_3, node_4 in node_groups:
         parent_level = get_level(parent_node)
         cur_level_max = max([get_location(node) for node in tree.nodes.values() if get_level(node) == parent_level+1], default=0)
@@ -417,14 +428,14 @@ def map_new_ordered_graph(ordered_graph):
 
 # for redundant removed strings
 
-def generate_final_tree_red(tree):
+def generate_final_tree_red(tree, k=2):
     tree_with_iden = add_zero_to_identifier(tree)
-    final_tree = add_symmetry_to_tree(tree_with_iden)
+    final_tree = add_symmetry_to_tree(tree_with_iden, k)
     
     return final_tree
 
-def generate_initial_tree_red(string_token_list):
-    node_groups = [tuple(grouper_mol(string)[0]) for string in string_token_list]
+def generate_initial_tree_red(string_token_list, k=2):
+    node_groups = [tuple(grouper_mol(string, k)[0]) for string in string_token_list]
     tree = Tree()
     tree.create_node("root", "0-0-0")
     parent_node = tree["0-0-0"]
@@ -452,13 +463,13 @@ def find_new_identifier(node_id, num=10):
     cur_pre_identifier = split[0] + '-' + split[1]
     return cur_pre_identifier + '-' + str(new_last_identifier)
 
-def add_symmetry_to_tree(tree):
+def add_symmetry_to_tree(tree, k):
+    k_square = k**2
     bfs_node_list = [tree[node] for node in tree.expand_tree(mode=tree.WIDTH, key=lambda x: (int(x.identifier.split('-')[0]), int(x.identifier.split('-')[1])))]
     node_list = [node for node in bfs_node_list[::-1] if not node.is_leaf()]
     for node in node_list:
         child_nodes = get_children_identifier(node, tree)
-        # child_nodes = sorted(child_nodes)
-        if len(child_nodes) < 4:
+        if len(child_nodes) < k_square:
             copy_node = tree.get_node(child_nodes[1])
             new_node = Node(tag=copy_node.tag, identifier=find_new_identifier(copy_node.identifier, 1))
             subtree = Tree(tree.subtree(child_nodes[1]), deep=True)
@@ -468,8 +479,6 @@ def add_symmetry_to_tree(tree):
                     count_dup = len([key for key in subtree.nodes.keys() 
                                      if (key.split('-')[0] == nid.split('-')[0]) and (key.split('-')[1] == nid.split('-')[1])])
                     new_iden = find_new_identifier(nid, count_dup*10)
-                    # while new_iden in subtree.nodes:
-                    #     new_iden = find_new_identifier(new_iden, 10)
                     new_tree.update_node(nid, identifier=new_iden)
                 tree.paste(node.identifier, new_tree)
             else:
@@ -482,7 +491,7 @@ def add_zero_to_identifier(tree):
     for node in tree.nodes:
         new_identifier = node
         while (len(new_identifier.split('-'))<3):
-            new_identifier = new_identifier + '-1000'
+            new_identifier = new_identifier + '-10000'
         new_tree.update_node(node, identifier=new_identifier)
     return new_tree
 
@@ -506,24 +515,22 @@ def map_deg_string(string):
             
     return ''.join(new_string) + left
 
-def remove_redundant(input_string, is_mol=False):
-    string = input_string[0:4]
-    pos_list = [1,2,3,4]
+def remove_redundant(input_string, is_mol=False, k=2):
+    k_square = k**2
+    string = input_string[0:k_square]
+    pos_list = list(range(1, k_square+1))
     str_pos_queue = deque([(s, p) for s, p in zip(string, pos_list)])
     if is_mol:
         group_list = list(grouper_mol(input_string))
     else:
-        group_list = list(grouper(4, input_string))
+        group_list = list(grouper(k_square, input_string))
     for cur_string in [''.join(token) for token in group_list][1:]:
-        if cur_string == 'C555':
-            print(input_string)
-            assert False
         cur_parent, cur_parent_pos = str_pos_queue.popleft()
         # if value is 0, it cannot be parent node -> skip
         while((cur_parent == '0') and (len(str_pos_queue) > 0)):
             cur_parent, cur_parent_pos = str_pos_queue.popleft()
         # i: order of the child node in the same parent
-        cur_pos = [cur_parent_pos*10+i for i in range(1,5)]
+        cur_pos = [cur_parent_pos*10+i for i in range(1,k_square+1)]
         # pos_list: final position of each node
         pos_list.extend(cur_pos)
         if is_mol:
@@ -532,13 +539,20 @@ def remove_redundant(input_string, is_mol=False):
             str_pos_queue.extend([(s, c) for s, c in zip(cur_string, cur_pos)])
     
     pos_list = [str(pos) for pos in pos_list]
+    prefixes = [str((i-1)*k + i) for i in range(1,k+1)]
+    postfixes = []
+    for i in range(1,k+1):
+        for j in range(i+1, k+1):
+            postfixes.append(str((i-1)*k+j))
+    
     # find positions ends with 2 including only 1 and 4
     remove_pos_prefix_list = [pos for i, pos in enumerate(pos_list) 
-                                if (pos[-1] == '2') and len((set(pos[:-1]))-set(['1', '4']))==0]
+                                if (pos[-1] in postfixes) and len((set(pos[:-1]))-set(prefixes))==0]
     remain_pos_index = [not pos.startswith(tuple(remove_pos_prefix_list)) for pos in pos_list]
     remain_pos_list = [pos for pos in pos_list if not pos.startswith(tuple(remove_pos_prefix_list))]
+    
     # find cutting points (one block)
-    cut_list = [i for i, pos in  enumerate(remain_pos_list) if pos[-1] == '4']
+    cut_list = [i for i, pos in  enumerate(remain_pos_list) if pos[-1] == str(k**2)]
     cut_list_2 = [0]
     cut_list_2.extend(cut_list[:-1])
     cut_size_list = [i - j for i, j in zip(cut_list , cut_list_2)]
@@ -553,19 +567,20 @@ def remove_redundant(input_string, is_mol=False):
     
     return [''.join(l) for l in final_string_cut_list]
 
-def get_max_len(data_name, order='C-M'):
+def get_max_len(data_name, order='C-M', k=2):
     total_strings = []
+    k_square = k**2
     for split in ['train', 'test', 'val']:
-        string_path = os.path.join(DATA_DIR, f"{data_name}/{order}/{data_name}_str_{split}.txt")
+        string_path = os.path.join(DATA_DIR, f"{data_name}/{order}/{data_name}_str_{split}_{k}.txt")
         strings = Path(string_path).read_text(encoding="utf=8").splitlines()
         
         total_strings.extend(strings)
     
-    red_list = [remove_redundant(string) for string in total_strings]
+    red_list = [remove_redundant(string, is_mol=False, k=k) for string in total_strings]
     # red_strings = [''.join(red) for red in red_list]
     
     max_len = max([len(string) for string in total_strings])
-    group_max_len = max_len / 4
+    group_max_len = max_len / k_square
     red_max_len = max([len(string) for string in red_list])
     
     return max_len, group_max_len, red_max_len

@@ -33,8 +33,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             tree_pos=hparams.tree_pos,
             pos_type=hparams.pos_type,
             learn_pos=hparams.learn_pos,
-            # abs_pos=True
-            abs_pos=hparams.abs_pos
+            abs_pos=hparams.abs_pos,
+            k=hparams.k
         )
 
     ### 
@@ -99,7 +99,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=76)
-        parser.add_argument("--string_type", type=str, default='group-red')
+        parser.add_argument("--string_type", type=str, default='group-red-3')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer
@@ -113,7 +113,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--abs_pos", action="store_true")
         
-        parser.add_argument("--k", type=int, default=2)
+        parser.add_argument("--k", type=int, default=3)
 
         return parser
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 
     trainer = pl.Trainer(
         devices=1,
-        accelerator='gpu',
+        accelerator='cpu',
         default_root_dir="/resource/log/",
         max_epochs=hparams.max_epochs,
         gradient_clip_val=hparams.gradient_clip_val,

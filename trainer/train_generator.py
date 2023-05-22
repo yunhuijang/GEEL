@@ -33,6 +33,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
         self.order = hparams.order
+        self.k = hparams.k
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -54,7 +55,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
         with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
             self.test_graphs = pickle.load(f)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, self.order, is_tree=hparams.tree_pos)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, self.order, is_tree=hparams.tree_pos, k=self.k)
                                                                    for split in ['train', 'val', 'test']]
         self.max_depth = hparams.max_depth
 
@@ -117,15 +118,15 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 is_zinc = False
                 if self.hparams.string_type in ['zinc', 'zinc-red']:
                     is_zinc = True
-                sampled_trees = [bfs_string_to_tree(string, is_zinc) 
+                sampled_trees = [bfs_string_to_tree(string, is_zinc, self.k) 
                                 for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
                 valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
             
-            elif self.hparams.string_type in ['bfs-red', 'group-red', 'qm9-red', 'zinc-red']:
+            elif self.hparams.string_type in ['bfs-red', 'group-red', 'group-red-3', 'qm9-red', 'zinc-red']:
                 valid_string_list = [string for string in string_list if len(string)>0]
-                sampled_trees = [generate_initial_tree_red(string) for string in valid_string_list]
+                sampled_trees = [generate_initial_tree_red(string, self.k) for string in valid_string_list]
                 valid_sampled_trees = [tree for tree in sampled_trees if check_tree_validity(tree)]
-                valid_sampled_trees = [generate_final_tree_red(tree) for tree in tqdm(valid_sampled_trees, "Sampling: converting string to tree")]
+                valid_sampled_trees = [generate_final_tree_red(tree, self.k) for tree in tqdm(valid_sampled_trees, "Sampling: converting string to tree")]
                 
             wandb.log({"validity": len(valid_string_list)/len(string_list)})
             # write down string
@@ -172,7 +173,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     tree_validity = 0
                 wandb.log({"tree-validity": tree_validity})
                 # valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-                adjs = [fix_symmetry(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
+                adjs = [fix_symmetry(tree_to_adj(tree, self.k)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
                 sampled_graphs = [adj_to_graph(adj) for adj in adjs]
                 save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
                 plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
@@ -201,8 +202,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.string_type)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.string_type)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.string_type, self.hparams.k)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.string_type, self.hparams.k)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

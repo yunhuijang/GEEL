@@ -16,10 +16,11 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, split, string_type='bfs', order='C-M', is_tree=False):
+    def __init__(self, split, string_type='bfs', order='C-M', is_tree=False, k=2):
         self.string_type = string_type
         self.is_tree = is_tree
         self.order = order
+        self.k = k
         if self.string_type in ['adj', 'adj_red']:
             if self.data_name in ['planar', 'sbm']:
                 adjs, _, _, _, _, _, _, _ = torch.load(f'{DATA_DIR}/{self.data_name}/{self.data_name}.pt')
@@ -31,20 +32,20 @@ class EgoDataset(Dataset):
             adjs = [nx.adjacency_matrix()]
             self.strings = '0'
         else:
-            string_path = os.path.join(self.raw_dir, f"{self.order}/{self.data_name}_str_{split}.txt")
+            string_path = os.path.join(self.raw_dir, f"{self.order}/{self.data_name}_str_{split}_{self.k}.txt")
             self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
         # use tree degree information
         if self.string_type in ['bfs-deg', 'bfs-deg-group']:
             self.strings = [map_deg_string(string) for string in self.strings]
         # remove redundant
         if 'red' in self.string_type:
-            self.strings = [remove_redundant(string, self.is_mol) for string in tqdm(self.strings, 'Removing redundancy')]
+            self.strings = [remove_redundant(string, self.is_mol, self.k) for string in tqdm(self.strings, 'Removing redundancy')]
     
     def __len__(self):
         return len(self.strings)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.strings[idx], self.string_type))
+        return torch.LongTensor(tokenize(self.strings[idx], self.string_type, self.k))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'

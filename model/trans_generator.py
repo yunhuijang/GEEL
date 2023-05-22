@@ -11,7 +11,7 @@ from torch.nn.utils.rnn import pad_sequence
 from time import time
 import re
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id, id_to_token
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_id, id_to_token, TOKENS_GROUP_THREE
 
 
 
@@ -51,19 +51,29 @@ class AbsolutePositionalEncoding(nn.Module):
         return x
 
 class TreePositionalEncoding(nn.Module):
-    def __init__(self, d_model, token2id, pos_type, max_len):
+    def __init__(self, d_model, token2id, pos_type, max_len, k=2):
         super().__init__()
         self.d_model = d_model
         self.pos_type = pos_type
-        self.pos_dict = {'0': (0,0,0,0), '1': (1,0,0,0), '2': (0,1,0,0), '3': (0,0,1,0), '4': (0,0,0,1)}
+        l = range(k**2+1)
+        position_dict = {str(key): np.zeros(len(l)-1, dtype=int) for key in l}
+        for key, value in position_dict.items():
+            position_dict[key][int(key)-1] = 1
+        position_dict['0'][-1] = 0
+        position_dict = {key: tuple(value) for key, value in position_dict.items()}
+        
+        self.k = k
+        self.k_square = k**2
+        # self.pos_dict = {'0': (0,0,0,0), '1': (1,0,0,0), '2': (0,1,0,0), '3': (0,0,1,0), '4': (0,0,0,1)}
+        self.pos_dict = position_dict
         self.token2id = token2id
         self.bos = self.token2id[BOS_TOKEN]
         self.eos = self.token2id[EOS_TOKEN]
         self.pad = self.token2id[PAD_TOKEN]
         if 'group' in self.pos_type:
-            self.max_pe_length = int(math.log(max_len, 4)+5)
+            self.max_pe_length = int(math.log(max_len, self.k_square)+5)
         else:
-            self.max_pe_length = int(math.log(max_len, 4)+5)*4
+            self.max_pe_length = int(math.log(max_len, self.k_square)+5)*(k**2)
         self.positional_embedding = nn.Linear(self.max_pe_length, self.d_model)
         self.padder = torch.nn.ReplicationPad2d((0,self.d_model-self.max_pe_length,0,0))
         is_group_dict = {'emb': False, 'group-emb': True, 'pad': False, 'group-pad': True}
@@ -82,15 +92,15 @@ class TreePositionalEncoding(nn.Module):
         if len(l) == 0:
             return torch.zeros((1,1))
         elif len(l) > 3:
-            string = l[0:4]
-            pos_list = [1,2,3,4]
+            string = l[0:self.k_square]
+            pos_list = list(range(1,self.k_square+1))
         else:
             string = l[0:len(l)]
             pos_list = list(range(1,len(l)+1))
             
         str_pos_queue = deque([(s, p) for s, p in zip(string, pos_list)])
-        for i in np.arange(4,len(l),4):
-            cur_string = l[i:i+4]
+        for i in np.arange(self.k_square,len(l),self.k_square):
+            cur_string = l[i:i+self.k_square]
             cur_parent, cur_parent_pos = str_pos_queue.popleft()
             # if value is 0, it cannot be parent node -> skip
             while((cur_parent == self.token2id['0']) and (len(str_pos_queue) > 0)):
@@ -152,11 +162,12 @@ class TreePositionalEncoding(nn.Module):
 
 
 class GroupTreePositionalEncoding(TreePositionalEncoding):
-    def __init__(self, d_model, token2id, id2token, pos_type, max_len):
-        super().__init__(d_model, token2id, pos_type, max_len)
+    def __init__(self, d_model, token2id, id2token, pos_type, max_len, k):
+        super().__init__(d_model, token2id, pos_type, max_len, k)
         self.id2token = id2token
     
     def map_string_to_sum(self, raw_string):
+        # group position (1,1,0,1,1,1 parent -> 11, 12, 14, 15, 16)
         string = self.id2token[raw_string]
         result = [char.start()+1 for char in re.finditer(r'(?!0).', string)]
         result.append(0)
@@ -197,29 +208,31 @@ class TransGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos, abs_pos
+        input_dropout, dropout, max_len, string_type, tree_pos, pos_type, learn_pos, abs_pos, k
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
         self.tokens = TOKENS_DICT[string_type]
         self.ID2TOKEN = id_to_token(self.tokens)
         self.string_type = string_type
-        self.TOKEN2ID = token_to_id(self.string_type)
+        self.k = k
+        self.TOKEN2ID = token_to_id(self.string_type, self.k)
         self.tree_pos = tree_pos
         self.pos_type = pos_type
         self.learn_pos = learn_pos
         self.abs_pos = abs_pos
         self.max_len = max_len
         
+        
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red', 'qm9-red', 'zinc-red']:
+        if string_type in ['group', 'bfs-deg-group', 'qm9', 'zinc', 'group-red', 'qm9-red', 'zinc-red', 'group-red-3']:
             if self.tree_pos:
-                self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type, self.max_len)
+                self.positional_encoding = GroupTreePositionalEncoding(emb_size, self.TOKEN2ID, self.ID2TOKEN, self.pos_type, self.max_len, self.k)
         else:
             if self.tree_pos:
-                self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type, self.max_len)
+                self.positional_encoding = TreePositionalEncoding(emb_size, self.TOKEN2ID, self.pos_type, self.max_len, self.k)
         #
         self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len)
         self.input_dropout = nn.Dropout(input_dropout)
@@ -240,7 +253,7 @@ class TransGenerator(nn.Module):
         
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        TOKEN2ID = token_to_id(self.string_type)
+        TOKEN2ID = token_to_id(self.string_type, self.k)
         #
         out = self.token_embedding_layer(sequences)
         if self.tree_pos:
@@ -282,7 +295,7 @@ class TransGenerator(nn.Module):
         return logits
 
     def decode(self, num_samples, max_len, device):
-        TOKEN2ID = token_to_id(self.string_type)
+        TOKEN2ID = token_to_id(self.string_type, self.k)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for _ in tqdm(range(max_len), "generation"):
