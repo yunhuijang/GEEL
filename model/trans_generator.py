@@ -137,6 +137,10 @@ class TransGenerator(nn.Module):
         return logits
 
     def decode(self, num_samples, max_len, device):
+        '''
+        sequential generation
+        '''
+        # TODO: maybe need change afterwards
         TOKEN2ID = token_to_id(self.string_type, self.k)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)

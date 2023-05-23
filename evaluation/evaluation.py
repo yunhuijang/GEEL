@@ -18,22 +18,13 @@ from sklearn.metrics.pairwise import pairwise_kernels
 from data.tokens import TOKENS_DICT
 
 
-def save_graph_list(log_folder_name, exp_name, gen_graph_list, valid_string_list, string_list, org_string_list):
+def save_graph_list(log_folder_name, exp_name, gen_graph_list):
     if not(os.path.isdir(f'./samples/graphs/{log_folder_name}')):
         os.makedirs(os.path.join(f'./samples/graphs/{log_folder_name}'))
     if not(os.path.isdir(f'./samples/string/{log_folder_name}')):
         os.makedirs(os.path.join(f'./samples/string/{log_folder_name}'))
     with open(f'./samples/graphs/{log_folder_name}/{exp_name}.pkl', 'wb') as f:
             pickle.dump(obj=gen_graph_list, file=f, protocol=pickle.HIGHEST_PROTOCOL)
-    with open(f'./samples/string//{log_folder_name}/{exp_name}.txt', 'w') as f :
-        for smiles in string_list:
-            f.write("%s\n" %smiles)
-    with open(f'./samples/string//{log_folder_name}/{exp_name}_val.txt', 'w') as f :
-        for smiles in valid_string_list:
-            f.write("%s\n" %smiles)
-    with open(f'./samples/string//{log_folder_name}/{exp_name}_org.txt', 'w') as f :
-        for smiles in org_string_list:
-            f.write("%s\n" %smiles)
     save_dir = f'./samples/graphs/{log_folder_name}/{exp_name}.pkl'
     return save_dir
 

@@ -10,12 +10,12 @@ import pickle
 import os
 from moses.metrics.metrics import get_all_metrics
 
+from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
-from data.data_utils import dfs_string_to_tree, tree_to_adj, check_validity, bfs_string_to_tree, adj_to_graph, check_tree_validity, generate_final_tree_red, fix_symmetry, generate_initial_tree_red
+from data.data_utils import adj_to_graph, fix_symmetry, adj_list_to_adj
 from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
-from model.lstm_generator import LSTMGenerator
 from data.tokens import untokenize
 
 DATA_DIR = "resource"
@@ -60,7 +60,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.max_depth = hparams.max_depth
 
     def setup_model(self, hparams):
-        self.model = LSTMGenerator(
+        self.model = TransGenerator(
             emb_size=hparams.emb_size,
             dropout=hparams.dropout,
             dataset=hparams.dataset_name
@@ -105,92 +105,30 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
     def check_samples(self):
         num_samples = self.hparams.num_samples if not self.trainer.sanity_checking else 2
-        string_list, org_string_list = self.sample(num_samples)
+        adj_lists, org_string_list = self.sample(num_samples)
         
         if not self.trainer.sanity_checking:
             
-            if self.hparams.string_type == 'dfs':
-                valid_string_list = [string for string in string_list if check_validity(string)]
-                sampled_trees = [dfs_string_to_tree(string) for string in valid_string_list]
-                valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
-            elif self.hparams.string_type in ['bfs', 'group', 'bfs-deg', 'bfs-deg-group', 'qm9', 'zinc']:
-                valid_string_list = [string for string in string_list if len(string)>0 and len(string)%4 == 0]
-                is_zinc = False
-                if self.hparams.string_type in ['zinc', 'zinc-red']:
-                    is_zinc = True
-                sampled_trees = [bfs_string_to_tree(string, is_zinc, self.k) 
-                                for string in tqdm(valid_string_list, "Sampling: converting string to tree")]
-                valid_sampled_trees = [tree for tree in sampled_trees if (tree.depth() <= self.max_depth) and check_tree_validity(tree)]
-            
-            elif self.hparams.string_type in ['bfs-red', 'group-red', 'group-red-3', 'qm9-red', 'zinc-red']:
-                valid_string_list = [string for string in string_list if len(string)>0]
-                sampled_trees = [generate_initial_tree_red(string, self.k) for string in valid_string_list]
-                valid_sampled_trees = [tree for tree in sampled_trees if check_tree_validity(tree)]
-                valid_sampled_trees = [generate_final_tree_red(tree, self.k) for tree in tqdm(valid_sampled_trees, "Sampling: converting string to tree")]
-                
-            wandb.log({"validity": len(valid_string_list)/len(string_list)})
-            # write down string
+            adjs = [fix_symmetry(adj_list_to_adj(adj_list)) for adj_list in adj_lists]
+            sampled_graphs = [adj_to_graph(adj) for adj in adjs]
+            save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs)
+            plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
+            plot_graphs_list(sampled_graphs, save_dir=plot_dir)
+            wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
 
-            
-            if self.hparams.string_type in ['zinc', 'qm9', 'zinc-red', 'qm9-red']:
-                # valid_sampled_trees = sampled_trees[:len(self.test_graphs)]
-                adjs = [fix_symmetry_mol(tree_to_adj(tree)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into adj")]
-                valid_adjs = [valid_adj for valid_adj in [check_adj_validity_mol(adj) for adj in adjs] if valid_adj is not None]
-                mols_no_correct = [adj_to_graph_mol(adj) for adj in valid_adjs]
-                mols_no_correct = [elem for elem in mols_no_correct if elem[0] is not None]
-                mols = [elem[0] for elem in mols_no_correct]
-                no_corrects = [elem[1] for elem in mols_no_correct]
-                num_mols = len(mols)
-                gen_smiles = mols_to_smiles(mols)
-                gen_smiles = [smi for smi in gen_smiles if len(smi)]
-                table = wandb.Table(columns=['SMILES'])
-                for s in gen_smiles:
-                    table.add_data(s)
-                wandb.log({'SMILES': table})
-                save_dir = f'{self.hparams.dataset_name}/{self.ts}'
-                with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
-                    for smiles in gen_smiles:
-                        f.write(f'{smiles}\n')
-                scores = get_all_metrics(gen=gen_smiles, device=self.device, n_jobs=8, test=self.test_smiles, train=self.train_smiles, k=len(gen_smiles))
-                scores_nspdk = eval_graph_list(self.test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
-                metrics_dict = scores
-                metrics_dict['unique'] = scores[f'unique@{len(gen_smiles)}']
-                del metrics_dict[f'unique@{len(gen_smiles)}']
-                metrics_dict['NSPDK'] = scores_nspdk
-                metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
-                wandb.log(metrics_dict)
+            # GDSS evaluation
+            methods, kernels = load_eval_settings('')
+            if len(sampled_graphs) == 0:
+                mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
             else:
-                table = wandb.Table(columns=['Orginal', 'String', 'Validity'])
-                if 'red' in self.hparams.string_type:
-                    org_string_list = [''.join(org) for org in org_string_list]
-                    string_list = [''.join(s) for s in string_list]
-                for org_string, string in zip(org_string_list, string_list):
-                    table.add_data(org_string, string, (len(string)>0 and len(string)%4 == 0))
-                wandb.log({'strings': table})
-                if len(sampled_trees) > 0:
-                    tree_validity = len(valid_sampled_trees) / len(sampled_trees)
-                else:
-                    tree_validity = 0
-                wandb.log({"tree-validity": tree_validity})
-                # valid_sampled_trees = valid_sampled_trees[:len(self.test_graphs)]
-                adjs = [fix_symmetry(tree_to_adj(tree, self.k)).numpy() for tree in tqdm(valid_sampled_trees, "Sampling: converting tree into graph")]
-                sampled_graphs = [adj_to_graph(adj) for adj in adjs]
-                save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs, valid_string_list, string_list, org_string_list)
-                plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
-                plot_graphs_list(sampled_graphs, save_dir=plot_dir)
-                wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
-
-                # GDSS evaluation
-                methods, kernels = load_eval_settings('')
-                if len(sampled_graphs) == 0:
-                    mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
-                else:
-                    mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
-                wandb.log(mmd_results)
-
-
+                mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
+            wandb.log(mmd_results)
 
     def sample(self, num_samples):
+        '''
+        generate graphs
+        '''
+        # TODO: maybe need change afterwards
         offset = 0
         string_list = []
         org_string_list = []
