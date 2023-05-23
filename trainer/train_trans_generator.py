@@ -30,11 +30,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             dropout=hparams.dropout,
             max_len=hparams.max_len,
             string_type=hparams.string_type,
-            tree_pos=hparams.tree_pos,
-            pos_type=hparams.pos_type,
             learn_pos=hparams.learn_pos,
             abs_pos=hparams.abs_pos,
-            k=hparams.k
         )
 
     ### 
@@ -107,13 +104,10 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--nhead", type=int, default=8)
         parser.add_argument("--dim_feedforward", type=int, default=512)
         parser.add_argument("--input_dropout", type=float, default=0.0)
-        parser.add_argument("--tree_pos", action="store_true")
-        parser.add_argument("--pos_type", type=str, default='emb')
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--abs_pos", action="store_true")
         
-        parser.add_argument("--k", type=int, default=3)
 
         return parser
 
@@ -123,10 +117,8 @@ if __name__ == "__main__":
     TransGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
     
-    pos_type_dict = {'emb': 'tpe', 'group-emb': 'gtpe'}
-    
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{pos_type_dict[hparams.pos_type]}-{hparams.k}', 
-                               project='k2g', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
+    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+                               project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     
     wandb.config.update(hparams)
 

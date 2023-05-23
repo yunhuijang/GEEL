@@ -6,7 +6,7 @@ import pickle
 import networkx as nx
 from tqdm import tqdm
 
-from data.data_utils import map_deg_string, remove_redundant, adj_to_graph
+from data.data_utils import adj_to_graph, adj_to_adj_list
 from data.tokens import tokenize
 
 
@@ -16,36 +16,18 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, split, string_type='bfs', order='C-M', is_tree=False, k=2):
-        self.string_type = string_type
-        self.is_tree = is_tree
+    def __init__(self, split, order='C-M'):
         self.order = order
-        self.k = k
-        if self.string_type in ['adj', 'adj_red']:
-            if self.data_name in ['planar', 'sbm']:
-                adjs, _, _, _, _, _, _, _ = torch.load(f'{DATA_DIR}/{self.data_name}/{self.data_name}.pt')
-                graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
-            else:
-                with open (f'{DATA_DIR}/{self.data_name}/{self.data_name}.pkl', 'rb') as f:
-                    graphs = pickle.load(f)
-            
-            adjs = [nx.adjacency_matrix()]
-            self.strings = '0'
-        else:
-            string_path = os.path.join(self.raw_dir, f"{self.order}/{self.data_name}_str_{split}_{self.k}.txt")
-            self.strings = Path(string_path).read_text(encoding="utf=8").splitlines()
-        # use tree degree information
-        if self.string_type in ['bfs-deg', 'bfs-deg-group']:
-            self.strings = [map_deg_string(string) for string in self.strings]
-        # remove redundant
-        if 'red' in self.string_type:
-            self.strings = [remove_redundant(string, self.is_mol, self.k) for string in tqdm(self.strings, 'Removing redundancy')]
-    
+        with open(f'{self.raw_dir}.pkl', 'rb') as f:
+            graphs = pickle.load(f)
+        adjs = [nx.adjacency_matrix(graph) for graph in graphs]
+        self.adj_list = [adj_to_adj_list(adj) for adj in adjs]
+
     def __len__(self):
-        return len(self.strings)
+        return len(self.adj_list)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.strings[idx], self.string_type, self.k))
+        return torch.LongTensor(tokenize(self.adj_list))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'

@@ -51,6 +51,7 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
     return elem_acc, sequence_acc
 
 def compute_sequence_cross_entropy(logits, batched_sequence_data, string_type):
+    # TODO: logits와 정답 batched_sequence_data만의 loss (현재) + 개수 맞히는 loss 추가
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
