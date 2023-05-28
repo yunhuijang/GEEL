@@ -8,12 +8,12 @@ import wandb
 from time import gmtime, strftime
 import pickle
 import os
-from moses.metrics.metrics import get_all_metrics
+#from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
 from data.data_utils import adj_to_graph, fix_symmetry, adj_list_to_adj
-from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
+#from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
 from data.tokens import untokenize
@@ -33,7 +33,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
         self.order = hparams.order
-        self.k = hparams.k
+        #self.k = hparams.k
+    
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -47,16 +48,28 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'proteins': ProteinsDataset
         }.get(hparams.dataset_name)
         if hparams.dataset_name in ['qm9', 'zinc']:
-            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+            
+        #     with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+        #         self.train_smiles = f.readlines()
+        #         self.train_smiles = canonicalize_smiles(self.train_smiles)
+        #     with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+        #         self.test_smiles = f.readlines()
+        #         self.test_smiles = canonicalize_smiles(self.test_smiles)
+        # with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+        #     self.test_graphs = pickle.load(f)
+
+
+            with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
                 self.train_smiles = f.readlines()
                 self.train_smiles = canonicalize_smiles(self.train_smiles)
-            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
                 self.test_smiles = f.readlines()
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
-        with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+        with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
             self.test_graphs = pickle.load(f)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.string_type, self.order, is_tree=hparams.tree_pos, k=self.k)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.order)
                                                                    for split in ['train', 'val', 'test']]
+
         self.max_depth = hparams.max_depth
 
     def setup_model(self, hparams):
@@ -99,7 +112,11 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             self.log(f"val/{key}", val, on_step=False, on_epoch=True, logger=True)
         pass
 
-    def validation_epoch_end(self, outputs):
+    # def validation_epoch_end(self, outputs):
+    #     if (self.current_epoch + 1) % self.hparams.check_sample_every_n_epoch == 0:
+    #         self.check_samples()
+
+    def on_validation_epoch_end(self):
         if (self.current_epoch + 1) % self.hparams.check_sample_every_n_epoch == 0:
             self.check_samples()
 
@@ -109,7 +126,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         
         if not self.trainer.sanity_checking:
             
-            adjs = [fix_symmetry(adj_list_to_adj(adj_list)) for adj_list in adj_lists]
+            adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists if len(adj_list) > 0]
+            wandb.log({'ratio': len([adj_list for adj_list in adj_lists if len(adj_list) > 0]) / len(adj_lists)})
+            #adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists]
             sampled_graphs = [adj_to_graph(adj) for adj in adjs]
             save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs)
             plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
@@ -140,8 +159,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.string_type, self.hparams.k)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.string_type, self.hparams.k)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.string_type)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.string_type)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

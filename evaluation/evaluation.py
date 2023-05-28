@@ -62,11 +62,11 @@ def process_tensor(x, y):
 
 def emd(x, y, distance_scaling=1.0):
     # -------- convert histogram values x and y to float, and make them equal len --------
-    x = x.astype(np.float)
-    y = y.astype(np.float)
+    x = x.astype(float)
+    y = y.astype(float)
     support_size = max(len(x), len(y))
     # -------- diagonal-constant matrix --------
-    d_mat = toeplitz(range(support_size)).astype(np.float)  
+    d_mat = toeplitz(range(support_size)).astype(float)  
     distance_mat = d_mat / distance_scaling
     x, y = process_tensor(x, y)
 
@@ -83,8 +83,8 @@ def gaussian_emd(x, y, sigma=1.0, distance_scaling=1.0):
     return np.exp(-emd_value * emd_value / (2 * sigma * sigma))
 
 def gaussian(x, y, sigma=1.0):
-    x = x.astype(np.float)
-    y = y.astype(np.float)
+    x = x.astype(float)
+    y = y.astype(float)
     x, y = process_tensor(x, y)
     dist = np.linalg.norm(x - y, 2)
     return np.exp(-dist * dist / (2 * sigma * sigma))
@@ -121,7 +121,9 @@ def disc(samples1, samples2, kernel, is_parallel=True, *args, **kwargs):
             for dist in executor.map(kernel_parallel_worker,
                                      [(s1, samples2, partial(kernel, *args, **kwargs)) for s1 in samples1]):
                 d += dist
+                
     d /= len(samples1) * len(samples2)
+
     return d
 
 def compute_mmd(samples1, samples2, kernel, is_hist=True, *args, **kwargs):
@@ -167,6 +169,7 @@ def degree_stats(graph_ref_list, graph_pred_list, KERNEL=gaussian_emd, is_parall
         for i in range(len(graph_pred_list_remove_empty)):
             degree_temp = np.array(nx.degree_histogram(graph_pred_list_remove_empty[i]))
             sample_pred.append(degree_temp)
+    
     mmd_dist = compute_mmd(sample_ref, sample_pred, kernel=KERNEL)
     elapsed = datetime.now() - prev
     if PRINT_TIME:

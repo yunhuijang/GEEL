@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import TransGenerator
-from train_generator import BaseGeneratorLightningModule
+from .train_generator import BaseGeneratorLightningModule
 
 from signal import signal, SIGPIPE, SIG_DFL   
 #Ignore SIG_PIPE and don't throw exceptions on it... (http://docs.python.org/library/signal.html)  
@@ -75,7 +75,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     
     @staticmethod
     def add_args(parser):
-        
+       
         parser.add_argument("--dataset_name", type=str, default="GDSS_com")
         parser.add_argument("--batch_size", type=int, default=32)
         parser.add_argument("--num_workers", type=int, default=6)
@@ -113,6 +113,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     TransGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
