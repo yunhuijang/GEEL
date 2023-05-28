@@ -9,6 +9,7 @@ from tqdm import tqdm
 from data.data_utils import adj_to_graph, adj_to_adj_list
 from data.tokens import tokenize
 
+import sys
 
 DATA_DIR = "resource"
     
@@ -16,7 +17,7 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, split, order='C-M'):
+    def __init__(self, split, order='C-M', data_name = data_name):
         self.order = order
         with open(f'{self.raw_dir}.pkl', 'rb') as f:
             graphs = pickle.load(f)
@@ -27,7 +28,7 @@ class EgoDataset(Dataset):
         return len(self.adj_list)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.adj_list))
+        return torch.LongTensor(tokenize(self.adj_list[idx], self.data_name))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'

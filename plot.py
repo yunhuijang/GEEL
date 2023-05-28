@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import pickle
 import warnings
 warnings.filterwarnings("ignore", category=matplotlib.cbook.MatplotlibDeprecationWarning)
+matplotlib.use('Agg')
+
 
 
 options = {

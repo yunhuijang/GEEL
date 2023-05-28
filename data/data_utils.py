@@ -17,9 +17,6 @@ from pathlib import Path
 import json
 
 
-from data.tokens import grouper_mol
-
-
 DATA_DIR = "resource"
 NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17}
 TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
@@ -28,20 +25,38 @@ TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}
 
 
 def adj_to_adj_list(adj):
-    # TODO
     '''
     adjacency matrix to adjacency list
     '''
-    adj_list = 0
+    adj_matrix = adj.todense()
+    num_nodes = len(adj_matrix)
+    adj_list = []
+    
+    for i in range(num_nodes):
+        for j in range(i + 1, num_nodes):
+            if adj_matrix[i,j] == 1:
+                adj_list.append((i, j))
+            
     return adj_list
 
 
 def adj_list_to_adj(adj_list):
-    # TODO
     '''
     adjacency list to adjacency matrix
     '''
-    adj = 0
+    if len(adj_list) < 2:
+        num_nodes = len(adj_list)
+        adj = [[0] * num_nodes for _ in range(num_nodes)]
+        return adj
+    
+    num_nodes =  max(map(max, adj_list))+1
+    adj = [[0] * num_nodes for _ in range(num_nodes)]
+    
+    for n, e in adj_list:
+        adj[n][e] = 1
+        adj[e][n] = 1
+  
+
     return adj
 
     
@@ -79,7 +94,8 @@ def adj_to_graph(adj, is_cuda=False):
     '''
     if is_cuda:
         adj = adj.detach().cpu().numpy()
-    G = nx.from_numpy_matrix(adj)
+
+    G = nx.from_numpy_matrix(adj.numpy())
     G.remove_edges_from(nx.selfloop_edges(G))
     G.remove_nodes_from(list(nx.isolates(G)))
     if G.number_of_nodes() < 1:
