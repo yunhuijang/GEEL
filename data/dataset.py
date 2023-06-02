@@ -6,7 +6,7 @@ import pickle
 import networkx as nx
 from tqdm import tqdm
 
-from data.data_utils import adj_to_graph, adj_to_adj_list
+from data.data_utils import adj_to_graph, adj_to_adj_list, train_val_test_split
 from data.tokens import tokenize
 
 import sys
@@ -17,10 +17,17 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, split, order='C-M', data_name = data_name):
+    def __init__(self, split, order='C-M'):
         self.order = order
         with open(f'{self.raw_dir}.pkl', 'rb') as f:
             graphs = pickle.load(f)
+        train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, self.data_name)
+        if split == 'train':
+            graphs = train_graphs
+        elif split =='val':
+            graphs = val_graphs
+        else:
+            graphs = test_graphs
         adjs = [nx.adjacency_matrix(graph) for graph in graphs]
         self.adj_list = [adj_to_adj_list(adj) for adj in adjs]
 

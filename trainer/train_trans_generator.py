@@ -9,7 +9,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import TransGenerator
-from .train_generator import BaseGeneratorLightningModule
+from trainer.train_generator import BaseGeneratorLightningModule
 
 from signal import signal, SIGPIPE, SIG_DFL   
 #Ignore SIG_PIPE and don't throw exceptions on it... (http://docs.python.org/library/signal.html)  

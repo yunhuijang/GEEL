@@ -27,11 +27,11 @@ class TokenEmbedding(nn.Module):
         self.tokens = TOKENS_DICT[string_type]
         self.ID2TOKEN = id_to_token(self.tokens)
     
-    def split_nodes(self, dictionary, input_tokens, device):
-        mapping_tensor1 = torch.zeros(len(dictionary), dtype=torch.long, device=device)
-        mapping_tensor2 = torch.zeros(len(dictionary), dtype=torch.long, device=device)
+    def split_nodes(self, id_to_token, input_tokens, device):
+        mapping_tensor1 = torch.zeros(len(id_to_token), dtype=torch.long, device=device)
+        mapping_tensor2 = torch.zeros(len(id_to_token), dtype=torch.long, device=device)
 
-        for key, value in dictionary.items():
+        for key, value in id_to_token.items():
             if isinstance(value, tuple):
                 mapping_tensor1[key] = value[0] + 3
                 mapping_tensor2[key] = value[1] + 3
@@ -52,14 +52,14 @@ class TokenEmbedding(nn.Module):
         t1, t2 = self.split_nodes(ID2TOKEN, tokens, device=tokens.device)
         x1 = self.embedding(t1) * math.sqrt(self.emb_size)
         x2 = self.embedding(t2) * math.sqrt(self.emb_size)
-        x = (x1+x2)/2.0
+        x = x1 + x2
 
         x_batch_size = x.shape[0]
         x_seq_len = x.shape[1]
         if self.learn_pos:
             pe = self.positional_embedding[:,:x_seq_len]
             pe_stack = torch.tile(pe, (x_batch_size, 1, 1))
-            return x+pe_stack
+            return x + pe_stack
         return x
 
 class AbsolutePositionalEncoding(nn.Module):

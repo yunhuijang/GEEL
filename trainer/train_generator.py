@@ -47,7 +47,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'sbm': SBMDataset,
             'proteins': ProteinsDataset
         }.get(hparams.dataset_name)
-        if hparams.dataset_name in ['qm9', 'zinc']:
+        # if hparams.dataset_name in ['qm9', 'zinc']:
             
         #     with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
         #         self.train_smiles = f.readlines()
@@ -59,12 +59,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         #     self.test_graphs = pickle.load(f)
 
 
-            with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-                self.train_smiles = f.readlines()
-                self.train_smiles = canonicalize_smiles(self.train_smiles)
-            with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-                self.test_smiles = f.readlines()
-                self.test_smiles = canonicalize_smiles(self.test_smiles)
+            # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+            #     self.train_smiles = f.readlines()
+            #     self.train_smiles = canonicalize_smiles(self.train_smiles)
+            # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+            #     self.test_smiles = f.readlines()
+            #     self.test_smiles = canonicalize_smiles(self.test_smiles)
         with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
             self.test_graphs = pickle.load(f)
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.order)
@@ -112,11 +112,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             self.log(f"val/{key}", val, on_step=False, on_epoch=True, logger=True)
         pass
 
-    # def validation_epoch_end(self, outputs):
-    #     if (self.current_epoch + 1) % self.hparams.check_sample_every_n_epoch == 0:
-    #         self.check_samples()
-
-    def on_validation_epoch_end(self):
+    def validation_epoch_end(self, outputs):
         if (self.current_epoch + 1) % self.hparams.check_sample_every_n_epoch == 0:
             self.check_samples()
 
@@ -147,7 +143,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         '''
         generate graphs
         '''
-        # TODO: maybe need change afterwards
         offset = 0
         string_list = []
         org_string_list = []
