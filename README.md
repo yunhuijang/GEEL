@@ -23,7 +23,7 @@ The configurations are given in `config/trans/` directory. Note that max_len den
 
 ### 2. Training and evaluation
 
-You can train HGGT model and generate samples by running:
+You can train ALT model and generate samples by running:
 ```sh
 CUDA_VISIBLE_DEVICES=${gpu_id} bash script/trans/{script_name}.sh
 ```
