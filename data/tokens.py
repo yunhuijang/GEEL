@@ -1,6 +1,8 @@
 from itertools import product
 import numpy as np
 
+from data.data_utils import get_max_len
+
 
 PAD_TOKEN = "[pad]"
 BOS_TOKEN = "[bos]"
@@ -9,42 +11,25 @@ UNK_TOKEN = "<unk>"
 
 standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
-#com
-TOKENS_COM = standard_tokens.copy()
-for i in range(20-1):
-    for j in range(i+1, 20):
-        TOKENS_COM.append((i,j))
+dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 'proteins']
+# dataset_list = ['GDSS_ego']
+# maximum number of nodes of each dataset (train, test, val)
+node_num_list = [17, 20, 125, 361, 64, 187, 500]
 
-#ego
-TOKENS_EGO = standard_tokens.copy()
-for i in range(17-1):
-    for j in range(i+1, 17):
-        TOKENS_EGO.append((i,j))
-
-#enz
-TOKENS_ENZ = standard_tokens.copy()
-for i in range(125-1):
-    for j in range(i+1, 125):
-        TOKENS_ENZ.append((i,j))
-        
-#grid
-TOKENS_GRID = standard_tokens.copy()
-for i in range(361-1):
-    for j in range(i+1, 361):
-        TOKENS_GRID.append((i,j))
-
-TOKENS_DICT = {'adj_list_com': TOKENS_COM, 'adj_list_ego': TOKENS_EGO, 'adj_list_enz': TOKENS_ENZ, 'adj_list_grid': TOKENS_GRID}
+TOKENS_DICT = {}
+for dataset, node_num in zip(dataset_list, node_num_list):
+    # node_num = get_max_len(dataset)[1]
+    tokens = standard_tokens.copy()
+    tokens.extend([(i,j) for i in range(node_num) for j in range(i+1, node_num+1)])
+    TOKENS_DICT[dataset] = tokens
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
 
 TOKENS_KEY_DICT = {key: token_list_to_dict(value) for key, value in TOKENS_DICT.items()}
 
-def token_to_id(string_type):
-    '''
-    string_type은 adj_list로 고정
-    '''
-    return TOKENS_KEY_DICT[string_type]
+def token_to_id(data_name):
+    return TOKENS_KEY_DICT[data_name]
 
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
@@ -54,22 +39,22 @@ def tokenize(adj_list, data_name):
     tokens = ["[bos]"]
     tokens.extend(adj_list)
     tokens.append("[eos]")
-
-    if data_name == "GDSS_com":
-        TOKEN2ID = token_to_id('adj_list_com')
-    elif data_name == "GDSS_ego":
-        TOKEN2ID = token_to_id('adj_list_ego')
-    elif data_name == "GDSS_enz":
-        TOKEN2ID = token_to_id('adj_list_enz')
-    elif data_name == "GDSS_grid":
-        TOKEN2ID = token_to_id('adj_list_grid')
+    TOKEN2ID = token_to_id(data_name)
+    # if data_name == "GDSS_com":
+    #     TOKEN2ID = token_to_id('adj_list_com')
+    # elif data_name == "GDSS_ego":
+    #     TOKEN2ID = token_to_id('adj_list_ego')
+    # elif data_name == "GDSS_enz":
+    #     TOKEN2ID = token_to_id('adj_list_enz')
+    # elif data_name == "GDSS_grid":
+    #     TOKEN2ID = token_to_id('adj_list_grid')
     
     return [TOKEN2ID[token] for token in tokens]
 
 
-def untokenize(sequence, string_type):
+def untokenize(sequence, data_name):
 
-    ID2TOKEN = id_to_token(TOKENS_DICT[string_type])
+    ID2TOKEN = id_to_token(TOKENS_DICT[data_name])
     tokens = [ID2TOKEN[id_] for id_ in sequence]
 
     org_tokens = tokens
@@ -82,7 +67,4 @@ def untokenize(sequence, string_type):
     if ("[bos]" in tokens) or ("[pad]" in tokens):
         return "", org_tokens
     
-    if 'red' in string_type:
-        return tokens, org_tokens
-    else:
-        return tokens, org_tokens
+    return tokens, org_tokens

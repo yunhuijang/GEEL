@@ -32,6 +32,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             string_type=hparams.string_type,
             learn_pos=hparams.learn_pos,
             abs_pos=hparams.abs_pos,
+            data_name=hparams.dataset_name
         )
 
     ### 
@@ -66,7 +67,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.string_type)
+        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name)
         statistics["loss/total"] = loss
         # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 

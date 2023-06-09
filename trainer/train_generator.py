@@ -7,12 +7,11 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from time import gmtime, strftime
 import pickle
-import os
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
-from data.data_utils import adj_to_graph, fix_symmetry, adj_list_to_adj
+from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -33,7 +32,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
         self.order = hparams.order
-        #self.k = hparams.k
     
         dataset_cls = {
             "GDSS_grid": GridDataset,
@@ -65,10 +63,13 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
             #     self.test_smiles = f.readlines()
             #     self.test_smiles = canonicalize_smiles(self.test_smiles)
-        with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
-            self.test_graphs = pickle.load(f)
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(split, self.order)
-                                                                   for split in ['train', 'val', 'test']]
+        # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
+        #     self.test_graphs = pickle.load(f)
+            
+        self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
+        
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs)
+                                                                   for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
 
         self.max_depth = hparams.max_depth
 
@@ -154,8 +155,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.string_type)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.string_type)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.dataset_name)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.dataset_name)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

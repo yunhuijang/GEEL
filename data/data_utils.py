@@ -1,20 +1,14 @@
 import torch
-from torch.nn import ZeroPad2d
-from torch import LongTensor
 from torch.utils.data import random_split
-from torch import count_nonzero
-import math
-from collections import deque
-from treelib import Tree, Node
+import pickle
+from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from itertools import zip_longest
 import networkx as nx
-from treelib import Tree, Node
 import numpy as np
-from itertools import compress, islice
 import os
-from pathlib import Path
 import json
+
+from data.orderings import ORDER_FUNCS, order_graphs
 
 
 DATA_DIR = "resource"
@@ -55,7 +49,6 @@ def adj_list_to_adj(adj_list):
     for n, e in adj_list:
         adj[n][e] = 1
         adj[e][n] = 1
-  
 
     return adj
 
@@ -94,8 +87,10 @@ def adj_to_graph(adj, is_cuda=False):
     '''
     if is_cuda:
         adj = adj.detach().cpu().numpy()
-
-    G = nx.from_numpy_matrix(adj.numpy())
+    if isinstance(adj, (np.ndarray, np.generic)):
+        G = nx.from_numpy_matrix(adj)
+    else:
+        G = nx.from_numpy_matrix(adj.numpy())
     G.remove_edges_from(nx.selfloop_edges(G))
     G.remove_nodes_from(list(nx.isolates(G)))
     if G.number_of_nodes() < 1:
@@ -116,18 +111,101 @@ def fix_symmetry(adj):
     sym_adj = torch.tril(adj) + torch.tril(adj).T
     return torch.where(sym_adj>0, 1, 0)
 
-# def get_max_len(data_name, order='C-M', k=2):
-#     total_strings = []
-#     k_square = k**2
-#     for split in ['train', 'test', 'val']:
-#         string_path = os.path.join(DATA_DIR, f"{data_name}/{order}/{data_name}_str_{split}_{k}.txt")
-#         strings = Path(string_path).read_text(encoding="utf=8").splitlines()
-        
-#         total_strings.extend(strings)
+# codes adapted from https://github.com/KarolisMart/SPECTRE
+def load_proteins_data(data_dir):
     
+    min_num_nodes=100
+    max_num_nodes=500
     
-#     max_len = max([len(string) for string in total_strings])
-#     group_max_len = max_len / k_square
+    adjs = []
+    eigvals = []
+    eigvecs = []
+    n_nodes = []
+    n_max = 0
+    max_eigval = 0
+    min_eigval = 0
+
+    G = nx.Graph()
+    # Load data
+    path = os.path.join(data_dir, 'proteins/DD')
+    data_adj = np.loadtxt(os.path.join(path, 'DD_A.txt'), delimiter=',').astype(int)
+    data_graph_indicator = np.loadtxt(os.path.join(path, 'DD_graph_indicator.txt'), delimiter=',').astype(int)
+    data_graph_types = np.loadtxt(os.path.join(path, 'DD_graph_labels.txt'), delimiter=',').astype(int)
+
+    data_tuple = list(map(tuple, data_adj))
+
+    # Add edges
+    G.add_edges_from(data_tuple)
+    G.remove_nodes_from(list(nx.isolates(G)))
+
+    # remove self-loop
+    G.remove_edges_from(nx.selfloop_edges(G))
+
+    # Split into graphs
+    graph_num = data_graph_indicator.max()
+    node_list = np.arange(data_graph_indicator.shape[0]) + 1
+
+    for i in tqdm(range(graph_num)):
+        # Find the nodes for each graph
+        nodes = node_list[data_graph_indicator == i + 1]
+        G_sub = G.subgraph(nodes)
+        G_sub.graph['label'] = data_graph_types[i]
+        if G_sub.number_of_nodes() >= min_num_nodes and G_sub.number_of_nodes() <= max_num_nodes:
+            adj = torch.from_numpy(nx.adjacency_matrix(G_sub).toarray()).float()
+            L = nx.normalized_laplacian_matrix(G_sub).toarray()
+            L = torch.from_numpy(L).float()
+            eigval, eigvec = torch.linalg.eigh(L)
+            
+            eigvals.append(eigval)
+            eigvecs.append(eigvec)
+            adjs.append(adj)
+            n_nodes.append(G_sub.number_of_nodes())
+            if G_sub.number_of_nodes() > n_max:
+                n_max = G_sub.number_of_nodes()
+            max_eigval = torch.max(eigval)
+            if max_eigval > max_eigval:
+                max_eigval = max_eigval
+            min_eigval = torch.min(eigval)
+            if min_eigval < min_eigval:
+                min_eigval = min_eigval
+
+    return adjs
+
+def load_graphs(data_name, order='C-M'):
+    raw_dir = f"resource/{data_name}"
+    if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid']:
+        with open(f'{raw_dir}.pkl', 'rb') as f:
+            graphs = pickle.load(f)
+    elif data_name == 'proteins':
+        adjs = load_proteins_data(DATA_DIR)
+        graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
+    else: # planar, sbm
+        adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
+        graphs = [adj_to_graph(adj) for adj in adjs]
     
-#     return max_len, group_max_len
+    train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, data_name)
     
+    graph_list = []
+    for graphs in train_graphs, val_graphs, test_graphs:
+        num_rep = 1
+        # order graphs
+        order_func = ORDER_FUNCS[order]
+        total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, seed=0, is_mol=True)
+        new_ordered_graphs = [map_new_ordered_graph(graph) for graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+        graph_list.append(new_ordered_graphs)
+    
+    return graph_list
+
+def get_max_len(data_name):
+    graphs_list = load_graphs(data_name)
+    max_len_edge = 0
+    max_len_node = 0
+    for graphs in graphs_list:
+        max_edge = max([len(graph.edges) for graph in graphs])
+        max_node = max([len(graph.nodes) for graph in graphs])
+        print(max_node)
+        if max_edge > max_len_edge:
+            max_len_edge = max_edge
+        if max_node > max_len_node:
+            max_len_node = max_node
+    return max_len_edge, max_len_node

@@ -15,7 +15,7 @@ from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, token_to_i
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type):
+    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name):
         super(TokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size + 3, emb_size)
         self.emb_size = emb_size
@@ -24,8 +24,9 @@ class TokenEmbedding(nn.Module):
         self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
 
         self.string_type = string_type
-        self.tokens = TOKENS_DICT[string_type]
+        self.tokens = TOKENS_DICT[data_name]
         self.ID2TOKEN = id_to_token(self.tokens)
+        self.data_name = data_name
     
     def split_nodes(self, id_to_token, input_tokens, device):
         mapping_tensor1 = torch.zeros(len(id_to_token), dtype=torch.long, device=device)
@@ -47,7 +48,7 @@ class TokenEmbedding(nn.Module):
         
     def forward(self, tokens):
         
-        ID2TOKEN = id_to_token(TOKENS_DICT[self.string_type])
+        ID2TOKEN = id_to_token(TOKENS_DICT[self.data_name])
 
         t1, t2 = self.split_nodes(ID2TOKEN, tokens, device=tokens.device)
         x1 = self.embedding(t1) * math.sqrt(self.emb_size)
@@ -85,23 +86,23 @@ class TransGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos
+        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
-        self.tokens = TOKENS_DICT[string_type]
+        self.data_name = data_name
+        self.tokens = TOKENS_DICT[self.data_name]
         self.ID2TOKEN = id_to_token(self.tokens)
         self.string_type = string_type
-        self.TOKEN2ID = token_to_id(self.string_type)
+        self.TOKEN2ID = token_to_id(self.data_name)
         self.learn_pos = learn_pos
         self.abs_pos = abs_pos
         self.max_len = max_len
         
-        
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #
@@ -120,7 +121,7 @@ class TransGenerator(nn.Module):
 
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        TOKEN2ID = token_to_id(self.string_type)
+        TOKEN2ID = token_to_id(self.data_name)
 
         out = self.token_embedding_layer(sequences)
    
@@ -164,8 +165,7 @@ class TransGenerator(nn.Module):
         '''
         sequential generation
         '''
-        # TODO: maybe need change afterwards
-        TOKEN2ID = token_to_id(self.string_type)
+        TOKEN2ID = token_to_id(self.data_name)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for _ in tqdm(range(max_len), "generation"):
