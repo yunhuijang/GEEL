@@ -17,20 +17,13 @@ pip install treelib
 
 ## Running experiments
 
-### 1. Data preparation
-
-We provide four generic datasets (ego-small, community-small, enzymes, and grid) . You can download the pickle files of the datasets from https://github.com/harryjo97/GDSS/tree/master. 
-
-Download the pickle file into the `reource/${dataset_name}/` directory.
-
-
-### 2. Configurations
+### 1. Configurations
 
 The configurations are given in `config/trans/` directory. Note that max_len denotes the maximum length of the sequence representation in generation. We set max_len as the maximum number of edges of training and test graphs.
 
-### 3. Training and evaluation
+### 2. Training and evaluation
 
-You can train HGGT model and generate samples by running:
+You can train ALT model and generate samples by running:
 ```sh
 CUDA_VISIBLE_DEVICES=${gpu_id} bash script/trans/{script_name}.sh
 ```
