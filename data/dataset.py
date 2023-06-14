@@ -2,9 +2,9 @@ import torch
 from torch.utils.data import Dataset
 import networkx as nx
 
-from data.data_utils import adj_to_adj_list, train_val_test_split, adj_to_graph, load_proteins_data, map_new_ordered_graph
+from data.data_utils import adj_to_adj_list
 from data.tokens import tokenize
-from data.orderings import ORDER_FUNCS, order_graphs
+
 
 DATA_DIR = "resource"
     
@@ -12,15 +12,16 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, graphs):
+    def __init__(self, graphs, string_type):
         adjs = [nx.adjacency_matrix(graph) for graph in graphs]
         self.adj_list = [adj_to_adj_list(adj) for adj in adjs]
+        self.string_type = string_type
 
     def __len__(self):
         return len(self.adj_list)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.adj_list[idx], self.data_name))
+        return torch.LongTensor(tokenize(self.adj_list[idx], self.data_name, self.string_type))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'

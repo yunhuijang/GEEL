@@ -15,7 +15,7 @@ import subprocess as sp
 from eden.graph import vectorize
 from sklearn.metrics.pairwise import pairwise_kernels
 
-from data.tokens import TOKENS_DICT
+from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF
 
 
 def save_graph_list(log_folder_name, exp_name, gen_graph_list):
@@ -41,12 +41,15 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
 
     return elem_acc, sequence_acc
 
-def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name):
+def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type):
     # TODO: logits와 정답 batched_sequence_data만의 loss (현재) + 개수 맞히는 loss 추가
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
-    tokens = TOKENS_DICT[data_name]
+    if string_type == 'adj_list':
+        tokens = TOKENS_DICT[data_name]
+    elif string_type == 'adj_list_diff':
+        tokens = TOKENS_DICT_DIFF[data_name]
     weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])
     loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
                         weight=torch.FloatTensor(weight_vector).to(logits.device))

@@ -17,44 +17,57 @@ dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm'
 node_num_list = [17, 20, 125, 361, 64, 187, 500]
 
 TOKENS_DICT = {}
+TOKENS_DICT_DIFF = {}
+# map adj_list tokens
 for dataset, node_num in zip(dataset_list, node_num_list):
-    # node_num = get_max_len(dataset)[1]
     tokens = standard_tokens.copy()
     tokens.extend([(i,j) for i in range(node_num) for j in range(i+1, node_num+1)])
     TOKENS_DICT[dataset] = tokens
+
+def map_diff(token):
+    return (token[0], token[1]-token[0])
+
+for dataset, tokens in TOKENS_DICT.items():
+    tokens_diff = standard_tokens.copy()
+    tokens_diff.extend([map_diff(token) for token in tokens if type(token) is tuple])
+    TOKENS_DICT_DIFF[dataset] = tokens_diff
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
 
 TOKENS_KEY_DICT = {key: token_list_to_dict(value) for key, value in TOKENS_DICT.items()}
 
-def token_to_id(data_name):
-    return TOKENS_KEY_DICT[data_name]
+TOKENS_KEY_DICT_DIFF = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF.items()}
+
+def token_to_id(data_name, string_type):
+    if string_type == 'adj_list':
+        return TOKENS_KEY_DICT[data_name]
+    elif string_type == 'adj_list_diff':
+        return TOKENS_KEY_DICT_DIFF[data_name]
 
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
 
-def tokenize(adj_list, data_name):
+def tokenize(adj_list, data_name, string_type):
 
+    TOKEN2ID = token_to_id(data_name, string_type)
     tokens = ["[bos]"]
-    tokens.extend(adj_list)
+    if string_type == 'adj_list':
+        tokens.extend(adj_list)
+    elif string_type == 'adj_list_diff':
+        tokens.extend([map_diff(edge) for edge in adj_list])
     tokens.append("[eos]")
-    TOKEN2ID = token_to_id(data_name)
-    # if data_name == "GDSS_com":
-    #     TOKEN2ID = token_to_id('adj_list_com')
-    # elif data_name == "GDSS_ego":
-    #     TOKEN2ID = token_to_id('adj_list_ego')
-    # elif data_name == "GDSS_enz":
-    #     TOKEN2ID = token_to_id('adj_list_enz')
-    # elif data_name == "GDSS_grid":
-    #     TOKEN2ID = token_to_id('adj_list_grid')
-    
+
     return [TOKEN2ID[token] for token in tokens]
 
 
-def untokenize(sequence, data_name):
-
-    ID2TOKEN = id_to_token(TOKENS_DICT[data_name])
+def untokenize(sequence, data_name, string_type):
+    if string_type == 'adj_list':
+        tokens = TOKENS_DICT[data_name]
+    elif string_type == 'adj_list_diff':
+        tokens = TOKENS_DICT_DIFF[data_name]
+        
+    ID2TOKEN = id_to_token(tokens)
     tokens = [ID2TOKEN[id_] for id_ in sequence]
 
     org_tokens = tokens

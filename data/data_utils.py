@@ -52,6 +52,9 @@ def adj_list_to_adj(adj_list):
 
     return adj
 
+def adj_list_diff_to_adj_list(adj_list_diff):
+    return [(token[0], token[0]+token[1]) for token in adj_list_diff]
+
     
 def train_val_test_split(
     data: list,

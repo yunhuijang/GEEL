@@ -67,7 +67,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name)
+        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type)
         statistics["loss/total"] = loss
         # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
@@ -97,7 +97,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=76)
-        parser.add_argument("--string_type", type=str, default='group-red-3')
+        parser.add_argument("--string_type", type=str, default='adj_list')
         parser.add_argument("--max_depth", type=int, default=20)
         
         # transformer

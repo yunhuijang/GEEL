@@ -11,7 +11,7 @@ import pickle
 
 from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
-from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs
+from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs, adj_list_diff_to_adj_list
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -68,7 +68,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
         self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
         
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
 
         self.max_depth = hparams.max_depth
@@ -122,7 +122,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         adj_lists, org_string_list = self.sample(num_samples)
         
         if not self.trainer.sanity_checking:
-            
+            if self.string_type == 'adj_list_diff':
+                adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
             adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists if len(adj_list) > 0]
             wandb.log({'ratio': len([adj_list for adj_list in adj_lists if len(adj_list) > 0]) / len(adj_lists)})
             #adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists]
@@ -155,8 +156,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.dataset_name)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.dataset_name)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             
