@@ -3,23 +3,22 @@ import torch.nn as nn
 from torch.distributions import Categorical
 import math
 from tqdm import tqdm
-import numpy as np
-from collections import deque
-from torch.nn.functional import pad
 import math
-from torch.nn.utils.rnn import pad_sequence
 from time import time
-import re
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, token_to_id, id_to_token
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
+    # TODO: token embedding eimension
     def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name):
         super(TokenEmbedding, self).__init__()
         self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)
-        self.embedding = nn.Embedding(self.num_nodes+3, emb_size)
+        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.embedding_numnode = nn.Embedding(self.num_nodes+4, emb_size)
+        # self.embedding_seq = nn.Embedding(vocab_size, emb_size)
         self.embedding_diff = nn.Embedding(self.num_nodes+4, emb_size)
+        # self.embedding_flat = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
         self.learn_pos = learn_pos
         # max_len+2: for eos / bos token
@@ -30,8 +29,12 @@ class TokenEmbedding(nn.Module):
             self.tokens = TOKENS_DICT[data_name]
         elif string_type == 'adj_list_diff':
             self.tokens = TOKENS_DICT_DIFF[data_name]
+        elif string_type in ['adj_flatten', 'adj_flatten_sym']:
+            self.tokens = TOKENS_DICT_FLATTEN[data_name]
+        elif string_type == 'adj_seq':
+            self.tokens = TOKENS_DICT_SEQ[data_name]
         else:
-            assert "No token type"
+            assert "No token type", False
         self.ID2TOKEN = id_to_token(self.tokens)
         self.data_name = data_name
     
@@ -54,20 +57,20 @@ class TokenEmbedding(nn.Module):
         return output_tokens1, output_tokens2
         
     def forward(self, token_sequences):
-        ID2TOKEN = id_to_token(self.tokens)
-        t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
-        # print(max(torch.flatten(t1)).item())
-        # print(max(torch.flatten(t2)).item())
-        m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
-        # if self.num_nodes + 3 < m:
-        #     print(m)
-        #     assert False
-        x1 = self.embedding(t1) * math.sqrt(self.emb_size)
-        if self.string_type == 'adj_list':
-            x2 = self.embedding(t2) * math.sqrt(self.emb_size)
-        elif self.string_type == 'adj_list_diff':
-            x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
-        x = x1 + x2
+        if self.string_type in ['adj_flatten', 'adj_flatten_sym']:
+            x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
+        elif self.string_type == 'adj_seq':
+            x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
+        elif self.string_type in ['adj_list_diff', 'adj_list']:
+            ID2TOKEN = id_to_token(self.tokens)
+            t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
+            # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
+            x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
+            if self.string_type == 'adj_list':
+                x2 = self.embedding_numnode_list(t2) * math.sqrt(self.emb_size)
+            elif self.string_type == 'adj_list_diff':
+                x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
+            x = x1 + x2
         # learnable PE
         if self.learn_pos:
             x_batch_size = x.shape[0]
@@ -110,8 +113,12 @@ class TransGenerator(nn.Module):
             self.tokens = TOKENS_DICT[self.data_name]
         elif self.string_type == 'adj_list_diff':
             self.tokens = TOKENS_DICT_DIFF[self.data_name]
+        elif self.string_type in ['adj_flatten', 'adj_flatten_sym']:
+            self.tokens = TOKENS_DICT_FLATTEN[self.data_name]
+        elif self.string_type in ['adj_seq', 'adj_seq_rel']:
+            self.tokens = TOKENS_DICT_SEQ[self.data_name]
         else:
-            assert "No token type"
+            assert False, "No token type"
         self.ID2TOKEN = id_to_token(self.tokens)
         
         self.TOKEN2ID = token_to_id(self.data_name, self.string_type)
@@ -148,7 +155,6 @@ class TransGenerator(nn.Module):
         if self.abs_pos:
             out = self.positional_encoding(out)
         out = self.input_dropout(out)
-
 
         if self.abs_pos:
             mask = torch.zeros(batch_size, sequence_len, sequence_len, self.nhead, device=out.device)

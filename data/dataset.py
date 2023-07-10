@@ -1,9 +1,11 @@
 import torch
 from torch.utils.data import Dataset
 import networkx as nx
+from torch_geometric.datasets import MNISTSuperpixels
 
 from data.data_utils import adj_to_adj_list
 from data.tokens import tokenize
+from data.orderings import bw_from_adj
 
 
 DATA_DIR = "resource"
@@ -13,15 +15,16 @@ class EgoDataset(Dataset):
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
     def __init__(self, graphs, string_type):
-        adjs = [nx.adjacency_matrix(graph) for graph in graphs]
-        self.adj_list = [adj_to_adj_list(adj) for adj in adjs]
+        self.adjs = [nx.adjacency_matrix(graph) for graph in graphs]
+        self.adj_list = [adj_to_adj_list(adj) for adj in self.adjs]
         self.string_type = string_type
+        self.bw = max([bw_from_adj(adj.toarray()) for adj in self.adjs])
 
     def __len__(self):
         return len(self.adj_list)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.adj_list[idx], self.data_name, self.string_type))
+        return torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'
@@ -66,4 +69,9 @@ class SBMDataset(EgoDataset):
 class ProteinsDataset(EgoDataset):
     data_name = 'proteins'
     raw_dir = f'{DATA_DIR}/proteins'
+    is_mol = False
+    
+class MNISTSuperPixelDataset(EgoDataset):
+    data_name = 'mnist'
+    raw_dir = f'{DATA_DIR}/mnist'
     is_mol = False

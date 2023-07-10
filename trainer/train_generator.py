@@ -11,7 +11,7 @@ import pickle
 
 from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
-from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs, adj_list_diff_to_adj_list
+from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs, adj_list_diff_to_adj_list, adj_flatten_to_adj, is_square, is_symmetric, map_samples_to_adjs
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -70,9 +70,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
-
-        self.max_depth = hparams.max_depth
-
+        self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+        
     def setup_model(self, hparams):
         self.model = TransGenerator(
             emb_size=hparams.emb_size,
@@ -122,11 +121,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         adj_lists, org_string_list = self.sample(num_samples)
         
         if not self.trainer.sanity_checking:
-            if self.string_type == 'adj_list_diff':
-                adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
-            adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists if len(adj_list) > 0]
-            wandb.log({'ratio': len([adj_list for adj_list in adj_lists if len(adj_list) > 0]) / len(adj_lists)})
-            #adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in adj_lists]
+            adjs = map_samples_to_adjs(adj_lists, self.string_type)
+            wandb.log({'ratio': len(adjs) / len(adj_lists)})
+            
             sampled_graphs = [adj_to_graph(adj) for adj in adjs]
             save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs)
             plot_dir = f'{self.hparams.dataset_name}/{self.ts}'

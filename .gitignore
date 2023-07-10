@@ -6,3 +6,5 @@ samples/
 *.log
 *.json
 wandb/
+resource/processed/
+resource/raw/

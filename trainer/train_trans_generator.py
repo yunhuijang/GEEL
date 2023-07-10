@@ -1,8 +1,11 @@
 import argparse
+import os
+
+# os.environ['CUDA_VISIBLE_DEVICES']="1"
+
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
-import os
 from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -79,16 +82,16 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
        
         parser.add_argument("--dataset_name", type=str, default="GDSS_com")
         parser.add_argument("--batch_size", type=int, default=32)
-        parser.add_argument("--num_workers", type=int, default=6)
+        parser.add_argument("--num_workers", type=int, default=0)
 
         parser.add_argument("--order", type=str, default="C-M")
         parser.add_argument("--replicate", type=int, default=0)
         #
         parser.add_argument("--emb_size", type=int, default=512)
         parser.add_argument("--dropout", type=float, default=0.1)
-        parser.add_argument("--lr", type=float, default=0.002)
+        parser.add_argument("--lr", type=float, default=0.001)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=20)
@@ -96,9 +99,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
-        parser.add_argument("--max_len", type=int, default=76)
-        parser.add_argument("--string_type", type=str, default='adj_list')
-        parser.add_argument("--max_depth", type=int, default=20)
+        parser.add_argument("--max_len", type=int, default=83)
+        parser.add_argument("--string_type", type=str, default='adj_seq_rel')
         
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
