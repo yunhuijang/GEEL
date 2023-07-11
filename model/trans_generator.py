@@ -31,7 +31,7 @@ class TokenEmbedding(nn.Module):
             self.tokens = TOKENS_DICT_DIFF[data_name]
         elif string_type in ['adj_flatten', 'adj_flatten_sym']:
             self.tokens = TOKENS_DICT_FLATTEN[data_name]
-        elif string_type == 'adj_seq':
+        elif string_type in ['adj_seq', 'adj_seq_rel']:
             self.tokens = TOKENS_DICT_SEQ[data_name]
         else:
             assert "No token type", False
@@ -59,7 +59,7 @@ class TokenEmbedding(nn.Module):
     def forward(self, token_sequences):
         if self.string_type in ['adj_flatten', 'adj_flatten_sym']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
-        elif self.string_type == 'adj_seq':
+        elif self.string_type in ['adj_seq', 'adj_seq_rel']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
         elif self.string_type in ['adj_list_diff', 'adj_list']:
             ID2TOKEN = id_to_token(self.tokens)

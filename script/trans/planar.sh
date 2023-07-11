@@ -4,7 +4,7 @@ python trainer/train_trans_generator.py \
 --max_epochs 500 \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
---max_len 274 \
+--max_len 245 \
 --wandb_on online \
 --string_type adj_seq \
 --lr 0.0005 \
@@ -17,7 +17,7 @@ python trainer/train_trans_generator.py \
 --max_epochs 500 \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
---max_len 274 \
+--max_len 245 \
 --wandb_on online \
 --string_type adj_seq \
 --lr 0.001 \
@@ -30,7 +30,7 @@ python trainer/train_trans_generator.py \
 --max_epochs 500 \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
---max_len 274 \
+--max_len 245 \
 --wandb_on online \
 --string_type adj_seq \
 --lr 0.0002 \
@@ -43,7 +43,7 @@ python trainer/train_trans_generator.py \
 --max_epochs 500 \
 --check_sample_every_n_epoch 20 \
 --replicate 0 \
---max_len 274 \
+--max_len 245 \
 --wandb_on online \
 --string_type adj_seq \
 --lr 0.0001 \

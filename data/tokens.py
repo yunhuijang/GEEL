@@ -47,7 +47,7 @@ for dataset, bw in zip(dataset_list, bw_list):
     # 0: node token
     tokens_seq.append(0)
     # 1-n: edge relative position token
-    tokens_seq.extend(np.arange(1,2*bw))
+    tokens_seq.extend(np.arange(1,bw+1))
     TOKENS_DICT_SEQ[dataset] = tokens_seq
     
 # for dataset, num_nodes, num_node_types, num_edge_types in zip(['qm9', 'zinc'], ,):
@@ -69,7 +69,7 @@ def token_to_id(data_name, string_type):
         return TOKENS_KEY_DICT_DIFF[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym']:
         return TOKENS_KEY_DICT_FLATTEN[data_name]
-    elif string_type in ['adj_seq']:
+    elif string_type in ['adj_seq', 'adj_seq_rel']:
         return TOKENS_KEY_DICT_SEQ[data_name]
 
 def id_to_token(tokens):
@@ -100,13 +100,15 @@ def tokenize(adj, adj_list, data_name, string_type):
             prev_src_node = src_node
     elif string_type == 'adj_seq_rel':
         tokens.append(0)
-        prev_src_node = 1
+        prev_src_node = 0
         adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
+        cur_tar_node = adj_list[0][1]
         for src_node, tar_node in adj_list:
             if prev_src_node != src_node:
                 tokens.append(0)
-                cur_tar_node = tar_node
-            diff = cur_tar_node - tar_node
+                diff = src_node - tar_node
+            else:
+                diff = cur_tar_node - tar_node
             tokens.append(diff)
             prev_src_node = src_node
             cur_tar_node = tar_node
@@ -123,7 +125,7 @@ def untokenize(sequence, data_name, string_type):
         tokens = TOKENS_DICT_DIFF[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
-    elif string_type == 'adj_seq':
+    elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]
         
     ID2TOKEN = id_to_token(tokens)

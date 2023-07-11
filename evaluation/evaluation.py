@@ -52,7 +52,7 @@ def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, str
         tokens = TOKENS_DICT_DIFF[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
-    elif string_type == 'adj_seq':
+    elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]    
         
     weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])

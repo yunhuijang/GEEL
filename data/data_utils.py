@@ -206,7 +206,6 @@ def get_max_len(data_name):
     for graphs in graphs_list:
         max_edge = max([len(graph.edges) for graph in graphs])
         max_node = max([len(graph.nodes) for graph in graphs])
-        print(max_node)
         if max_edge > max_len_edge:
             max_len_edge = max_edge
         if max_node > max_len_node:
@@ -258,10 +257,10 @@ def check_adj_list_validity(adj_list):
     else:
         return True
 
-def seq_rel_to_adj(seq_rel):
+def seq_to_adj(seq):
     adj_list = []
     cur_node_num = 0
-    for element in seq_rel:
+    for element in seq:
         if element != 0:
             adj_list.append((cur_node_num, cur_node_num-element))
         else:
@@ -272,6 +271,21 @@ def seq_rel_to_adj(seq_rel):
     else:
         return ''
 
+def seq_rel_to_adj(seq):
+    adj_list = []
+    cur_node_num = 0
+    for element in seq:
+        if element != 0:
+            tar_node -= element
+            adj_list.append((cur_node_num, tar_node))
+        else:
+            cur_node_num += 1
+            tar_node = cur_node_num
+            continue
+    if check_adj_list_validity(adj_list):
+        return torch.tensor(adj_list_to_adj(adj_list))
+    else:
+        return ''
 
 def map_samples_to_adjs(samples, string_type):
     
@@ -291,6 +305,9 @@ def map_samples_to_adjs(samples, string_type):
     elif string_type == 'adj_seq':
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
         # num_nodes = [sample.count(0) for sample in filtered_samples]
+        adjs = [seq_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_to_adj(seq_rel))>0]
+    elif string_type == 'adj_seq_rel':
+        filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
         adjs = [seq_rel_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_rel_to_adj(seq_rel))>0]
     else:
         assert False, 'No string type'
