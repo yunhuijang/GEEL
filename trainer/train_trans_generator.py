@@ -35,7 +35,9 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             string_type=hparams.string_type,
             learn_pos=hparams.learn_pos,
             abs_pos=hparams.abs_pos,
-            data_name=hparams.dataset_name
+            data_name=hparams.dataset_name,
+            bw=self.bw,
+            num_nodes=self.num_nodes
         )
 
     ### 
@@ -91,7 +93,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.0002)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=20)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=20)
@@ -129,7 +131,7 @@ if __name__ == "__main__":
 
     model = TransGeneratorLightningModule(hparams)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name), monitor="val/loss/total", mode="min",
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id)
     )
 
     trainer = pl.Trainer(

@@ -10,8 +10,8 @@ import pickle
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset
-from data.data_utils import adj_to_graph, adj_list_to_adj, load_graphs, adj_list_diff_to_adj_list, adj_flatten_to_adj, is_square, is_symmetric, map_samples_to_adjs
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, MNISTSuperPixelDataset
+from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
@@ -43,7 +43,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'zinc': ZINCDataset,
             'planar': PlanarDataset,
             'sbm': SBMDataset,
-            'proteins': ProteinsDataset
+            'proteins': ProteinsDataset,
+            'mnist': MNISTSuperPixelDataset
         }.get(hparams.dataset_name)
         # if hparams.dataset_name in ['qm9', 'zinc']:
             
@@ -71,6 +72,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
         self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+        self.num_nodes = get_max_len(hparams.dataset_name)[1]
         
     def setup_model(self, hparams):
         self.model = TransGenerator(

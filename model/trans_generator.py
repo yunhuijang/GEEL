@@ -11,16 +11,17 @@ from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DIC
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
     # TODO: token embedding eimension
-    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name):
+    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
         super(TokenEmbedding, self).__init__()
-        self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)
-        self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.embedding_numnode = nn.Embedding(self.num_nodes+4, emb_size)
-        # self.embedding_seq = nn.Embedding(vocab_size, emb_size)
-        self.embedding_diff = nn.Embedding(self.num_nodes+4, emb_size)
-        # self.embedding_flat = nn.Embedding(vocab_size, emb_size)
+        # self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)
+        self.num_nodes = num_nodes
+        self.bw = bw
         self.emb_size = emb_size
         self.learn_pos = learn_pos
+        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.embedding_numnode = nn.Embedding(self.num_nodes+4, emb_size)
+        self.embedding_diff = nn.Embedding(self.bw+4, emb_size)
+        
         # max_len+2: for eos / bos token
         self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
 
@@ -67,7 +68,7 @@ class TokenEmbedding(nn.Module):
             # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
             x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
             if self.string_type == 'adj_list':
-                x2 = self.embedding_numnode_list(t2) * math.sqrt(self.emb_size)
+                x2 = self.embedding_numnode(t2) * math.sqrt(self.emb_size)
             elif self.string_type == 'adj_list_diff':
                 x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
             x = x1 + x2
@@ -103,7 +104,7 @@ class TransGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name
+        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name, bw, num_nodes
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
@@ -125,11 +126,13 @@ class TransGenerator(nn.Module):
         self.learn_pos = learn_pos
         self.abs_pos = abs_pos
         self.max_len = max_len
+        self.bw = bw
+        self.num_nodes = num_nodes
         
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #

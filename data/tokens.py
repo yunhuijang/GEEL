@@ -25,31 +25,35 @@ TOKENS_DICT_SEQ = {}
 # map adj_list tokens
 for dataset, node_num in zip(dataset_list, node_num_list):
     tokens = standard_tokens.copy()
-    tokens.extend([(i,j) for i in range(node_num) for j in range(i+1, node_num+1)])
+    tokens.extend([(j,i) for i in range(node_num) for j in range(i+1, node_num+1)])
     TOKENS_DICT[dataset] = tokens
 
 def map_diff(token):
-    return (token[0], token[1]-token[0])
+    return (token[0], token[0]-token[1])
 
 for dataset, tokens in TOKENS_DICT.items():
-    # map adj_list_diff tokens
-    tokens_diff = standard_tokens.copy()
-    tokens_diff.extend([map_diff(token) for token in tokens if type(token) is tuple])
-    TOKENS_DICT_DIFF[dataset] = tokens_diff
+    
+    # tokens_diff = standard_tokens.copy()
+    # tokens_diff.extend([map_diff(token) for token in tokens if type(token) is tuple])
+    # TOKENS_DICT_DIFF[dataset] = tokens_diff
     # map adj_flatten / adj_flatten_sym tokens
     tokens_flat = standard_tokens.copy()
     tokens_flat.extend([0, 1])
     TOKENS_DICT_FLATTEN[dataset] = tokens_flat
 
 # map sequential representation tokens
-for dataset, bw in zip(dataset_list, bw_list):
+for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     tokens_seq = standard_tokens.copy()
     # 0: node token
     tokens_seq.append(0)
     # 1-n: edge relative position token
     tokens_seq.extend(np.arange(1,bw+1))
     TOKENS_DICT_SEQ[dataset] = tokens_seq
-    
+    # map adj_list_diff tokens
+    tokens_diff = standard_tokens.copy()
+    tokens = TOKENS_DICT[dataset]
+    tokens_diff.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
+    TOKENS_DICT_DIFF[dataset] = tokens_diff
 # for dataset, num_nodes, num_node_types, num_edge_types in zip(['qm9', 'zinc'], ,):
 #     tokens_featured = standard_tokens.copy()
 #     tokens_featured 
