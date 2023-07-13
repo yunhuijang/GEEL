@@ -75,3 +75,6 @@ class MNISTSuperPixelDataset(EgoDataset):
     data_name = 'mnist'
     raw_dir = f'{DATA_DIR}/mnist'
     is_mol = False
+    def __init__(self, graphs, string_type):
+        super().__init__
+        self.xs = [1 if elem > 0 else 0 for graph in graphs]

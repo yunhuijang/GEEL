@@ -10,20 +10,27 @@ from data.data_utils import load_graphs, get_max_len
 
 from torch_geometric.datasets import MNISTSuperpixels
 
+from scipy.stats import entropy
+
+
+
+
 graphs = MNISTSuperpixels(root='resource', train=True)
 print('hi')
+# print('hi')
 # dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm']
-# # dataset_list = ['proteins']
+# # # dataset_list = ['proteins']
 # order = 'C-M'
 # for dataset_name in dataset_list:
-#     print(get_max_len(dataset_name))
-    # train_graphs, val_graphs, test_graphs = load_graphs(dataset_name, order)
-    # bw = 0
-    # for graphs in [train_graphs, val_graphs, test_graphs]:
-    #     adjs = [nx.adjacency_matrix(graph) for graph in graphs]
-    #     bw = max(max([bw_from_adj(adj.toarray()) for adj in adjs]), bw)
-    # print(dataset_name)
-    # print(bw)
+#     # print(dataset_name)
+#     # print(get_max_len(dataset_name))
+#     train_graphs, val_graphs, test_graphs = load_graphs(dataset_name, order)
+#     bw = 0
+#     for graphs in [train_graphs, val_graphs, test_graphs]:
+#         adjs = [nx.adjacency_matrix(graph) for graph in graphs]
+#         bw = max(max([bw_from_adj(adj.toarray()) for adj in adjs]), bw)
+#     print(dataset_name)
+#     print(bw)
 
 # def bw_from_adj(A: np.ndarray) -> int:
 #     """calculate bandwidth from adjacency matrix"""

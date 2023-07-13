@@ -8,6 +8,8 @@ import numpy as np
 import os
 import json
 import math
+from torch_geometric.datasets import MNISTSuperpixels
+from torch_geometric.utils import to_networkx
 
 from data.orderings import ORDER_FUNCS, order_graphs
 
@@ -54,7 +56,7 @@ def adj_list_to_adj(adj_list):
     return adj
 
 def adj_list_diff_to_adj_list(adj_list_diff):
-    return [(token[0], token[0]+token[1]) for token in adj_list_diff]
+    return [(token[0], token[1]-token[0]) for token in adj_list_diff]
 
     
 def train_val_test_split(
@@ -182,11 +184,14 @@ def load_graphs(data_name, order='C-M'):
     elif data_name == 'proteins':
         adjs = load_proteins_data(DATA_DIR)
         graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
+    elif data_name == 'mnist':
+        train_graphs, val_graphs, test_graphs = mnist_to_graphs()
     else: # planar, sbm
         adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
         graphs = [adj_to_graph(adj) for adj in adjs]
-    
-    train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, data_name)
+        
+    if data_name != 'mnist':
+        train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, data_name)
     
     graph_list = []
     for graphs in train_graphs, val_graphs, test_graphs:
@@ -195,9 +200,31 @@ def load_graphs(data_name, order='C-M'):
         order_func = ORDER_FUNCS[order]
         total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
         new_ordered_graphs = [nx.from_numpy_array(ordered_graph.to_adjacency().numpy()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+        # graph_attributes = [ordered_graph.graph.graph for ordered_graph in total_ordered_graphs]
+        # node_attributes = 
+        # for new_ordered_graph in new_ordered_graphs:
+        # TODO: data (for featured graph)
+        if data_name == 'mnist':
+            graphs_new = [to_networkx(ordered_graph.to_data()) for ordered_graph in total_ordered_graphs]
         graph_list.append(new_ordered_graphs)
     
     return graph_list
+
+def mnist_to_graphs():
+    train_val_graphs = MNISTSuperpixels(root='resource', train=True)[:80]
+    val_raw_data = train_val_graphs[:int(len(train_val_graphs)*0.2)]
+    train_raw_data = train_val_graphs[int(len(train_val_graphs)*0.2):]
+    test_raw_data = MNISTSuperpixels(root='resource', train=False)[:20]
+    
+    graphs = []
+    for raw_data in [train_raw_data, val_raw_data, test_raw_data]:
+        node_attrs = ['x', 'pos']
+        graph_attrs = ['y']
+        networkx_graphs = [to_networkx(data, node_attrs=node_attrs, graph_attrs=graph_attrs,
+                                       to_undirected=True) for data in raw_data]
+        graphs.append(networkx_graphs)
+        
+    return graphs
 
 def get_max_len(data_name):
     graphs_list = load_graphs(data_name)
@@ -304,7 +331,6 @@ def map_samples_to_adjs(samples, string_type):
         adjs = [fix_symmetry(torch.tensor(adj)) for adj in lower_adjs]
     elif string_type == 'adj_seq':
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
-        # num_nodes = [sample.count(0) for sample in filtered_samples]
         adjs = [seq_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_to_adj(seq_rel))>0]
     elif string_type == 'adj_seq_rel':
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]

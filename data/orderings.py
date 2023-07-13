@@ -194,7 +194,11 @@ class OrderedGraph:
     def to_data(self) -> Data:
         A = nx.to_scipy_sparse_matrix(self.graph, nodelist=self.ordering)
         edge_index = from_scipy_sparse_matrix(A)[0]
-        return Data(edge_index=edge_index)
+        graph_attr = np.array(self.graph.graph['y'])
+        x = np.array([self.graph.nodes[i]['x'] for i in self.ordering])
+        pos = np.array([self.graph.nodes[i]['pos'] for i in self.ordering])
+        return Data(edge_index=edge_index, y=graph_attr,
+                    x=x, pos=pos)
 
     def to_adjacency(self) -> torch.Tensor:
         return torch.tensor(
