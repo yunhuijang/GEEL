@@ -7,6 +7,7 @@ from pytorch_lightning.loggers import WandbLogger
 import wandb
 from time import gmtime, strftime
 import pickle
+import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
@@ -32,6 +33,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
         self.order = hparams.order
+        self.is_token = hparams.is_token
     
         dataset_cls = {
             "GDSS_grid": GridDataset,
@@ -69,7 +71,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
         self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
         
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
         self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
         self.num_nodes = get_max_len(hparams.dataset_name)[1]
@@ -123,7 +125,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         adj_lists, org_string_list = self.sample(num_samples)
         
         if not self.trainer.sanity_checking:
-            adjs = map_samples_to_adjs(adj_lists, self.string_type)
+            adjs = map_samples_to_adjs(adj_lists, self.string_type, self.is_token)
             wandb.log({'ratio': len(adjs) / len(adj_lists)})
             
             sampled_graphs = [adj_to_graph(adj) for adj in adjs]
@@ -138,6 +140,14 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
             else:
                 mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
+                for graph in self.test_graphs:
+                    nx.set_node_attributes(graph, 0, "label")
+                    nx.set_edge_attributes(graph, 1, "label")
+                for graph in sampled_graphs:
+                    nx.set_node_attributes(graph, 0, "label")
+                    nx.set_edge_attributes(graph, 1, "label")
+                scores_nspdk = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=['nspdk'])['nspdk']
+                mmd_results['nspdk'] = scores_nspdk
             wandb.log(mmd_results)
 
     def sample(self, num_samples):
@@ -155,8 +165,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             
