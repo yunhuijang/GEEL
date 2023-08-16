@@ -14,6 +14,7 @@ from torch_geometric.utils import to_networkx
 from data.orderings import ORDER_FUNCS, order_graphs
 
 
+
 DATA_DIR = "resource"
 NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17}
 TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
@@ -56,7 +57,7 @@ def adj_list_to_adj(adj_list):
     return adj
 
 def adj_list_diff_to_adj_list(adj_list_diff):
-    return [(token[0], token[1]-token[0]) for token in adj_list_diff]
+    return [(token[0], token[0]-token[1]) for token in adj_list_diff]
 
     
 def train_val_test_split(
@@ -314,15 +315,21 @@ def seq_rel_to_adj(seq):
     else:
         return ''
 
-def map_samples_to_adjs(samples, string_type):
+def map_samples_to_adjs(samples, string_type, is_token):
     
-    filtered_samples = [sample for sample in samples if len(sample) > 0]
+    filtered_samples = [sample for sample in samples if (len(sample) > 0) and ('<unk>' not in sample)]
+    if is_token:
+        filtered_samples = [''.join(sample) for sample in filtered_samples]
+        filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
+        filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]
+        filtered_samples = [sample for sample in filtered_samples if (len(sample) > 0)]
+
     # map adj_list_diff to adj_list
     if string_type == 'adj_list_diff':
-        samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
+        filtered_samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
     # map adjacecny matrices from samples
     if string_type in ['adj_list', 'adj_list_diff']:
-        adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples]
+        adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples if check_adj_list_validity(adj_list)>0]
     elif string_type == 'adj_flatten':
         adjs = [adj_flatten_to_adj(adj_flatten) for adj_flatten in filtered_samples if is_square(adj_flatten)]
         adjs = [adj for adj in adjs if is_symmetric(adj)]
@@ -335,7 +342,97 @@ def map_samples_to_adjs(samples, string_type):
     elif string_type == 'adj_seq_rel':
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
         adjs = [seq_rel_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_rel_to_adj(seq_rel))>0]
+    elif string_type == 'bwr':
+        adjs = [unflatten_forward(torch.tensor(flatten)) for flatten in filtered_samples]
     else:
         assert False, 'No string type'
         
     return adjs
+
+# Codes adapted from https://github.com/Genentech/bandwidth-graph-generation
+def flatten_forward(A: torch.Tensor, bw: int) -> torch.Tensor:
+    n = A.shape[0]
+    out = torch.zeros((n, bw) + A.shape[2:], dtype=A.dtype, device=A.device)
+    for i in range(n):
+        append_len = min(bw, n - i - 1)
+        if append_len > 0:
+            out[i, :append_len] = A[i, i + 1: i + 1 + append_len]
+    return out
+
+def unflatten_forward(band_flat_A: torch.Tensor) -> torch.Tensor:
+    n, bw = band_flat_A.shape[:2]
+    out = torch.zeros((n, n) + band_flat_A.shape[2:], dtype=band_flat_A.dtype, device=band_flat_A.device)
+    for i in range(n):
+        append_len = min(bw, n - i - 1)
+        if append_len > 0:
+            out[i, i + 1: i + 1 + append_len] = band_flat_A[i, :append_len]
+    out = out + out.T
+    return out
+
+def unflatten_forward(band_flat_A: torch.Tensor) -> torch.Tensor:
+    n, bw = band_flat_A.shape[:2]
+    out = torch.zeros((n, n) + band_flat_A.shape[2:], dtype=band_flat_A.dtype, device=band_flat_A.device)
+    for i in range(n):
+        append_len = min(bw, n - i - 1)
+        if append_len > 0:
+            out[i, i + 1: i + 1 + append_len] = band_flat_A[i, :append_len]
+    out = out + out.T
+    return out
+
+def map_string_adj_seq_rel(adj_list):
+    string = "0"
+    prev_src_node = 0
+    adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
+    cur_tar_node = adj_list[0][1]
+    for src_node, tar_node in adj_list:
+        if prev_src_node != src_node:
+            string += "0"
+            diff = src_node - tar_node
+        else:
+            diff = cur_tar_node - tar_node
+        string += str(diff)
+        prev_src_node = src_node
+        cur_tar_node = tar_node
+    return string
+
+def map_string_adj_seq(adj_list):
+    string = "0"
+    prev_src_node = 1
+    for src_node, tar_node in adj_list:
+        if prev_src_node != src_node:
+            string += "0"
+        diff = src_node - tar_node
+        string += str(diff)
+        prev_src_node = src_node
+    return string
+
+def map_string_flat_sym(adj):
+    np_adj = adj.toarray()
+    lower_diagonal = np_adj[np.tril_indices(len(np_adj))]
+    return "".join([str(int(elem)) for elem in lower_diagonal.tolist()])
+
+def train_data_to_string(data_name='GDSS_com', string_type='adj_seq_rel', order='C-M'):
+    '''
+    Generate string representation for tokenization
+    '''
+    graphs, _, _ = load_graphs(data_name, order)
+    adjs = [nx.adjacency_matrix(graph) for graph in graphs]
+    adj_lists = [adj_to_adj_list(adj) for adj in adjs]
+
+    if string_type == 'adj_seq_rel':
+        strings = [map_string_adj_seq_rel(adj_list) for adj_list in adj_lists]
+
+    elif string_type == 'adj_seq':
+        strings = [map_string_adj_seq(adj_list) for adj_list in adj_lists]
+        
+    elif string_type == 'adj_flatten':
+        strings = ["".join([str(int(elem)) for elem in torch.flatten(torch.tensor(adj.todense())).tolist()]) for adj in adjs]
+        
+    elif string_type == 'adj_flatten_sym':
+        strings = [map_string_flat_sym(adj) for adj in adjs]
+
+    with open(f'./samples/string/{data_name}/{string_type}.txt', 'w') as f :
+        for smiles in strings:
+            f.write("%s\n" %smiles)
+    
+    

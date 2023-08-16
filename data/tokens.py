@@ -1,7 +1,11 @@
 import torch
 import numpy as np
+from itertools import product
+import sentencepiece as spm
+from collections import defaultdict
 
-from data.data_utils import get_max_len
+from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym
+from data.orderings import bw_from_adj
 
 
 PAD_TOKEN = "[pad]"
@@ -22,6 +26,7 @@ TOKENS_DICT_DIFF = {}
 TOKENS_DICT_FEATURED = {}
 TOKENS_DICT_FLATTEN = {}
 TOKENS_DICT_SEQ = {}
+TOKENS_BWR = {}
 # map adj_list tokens
 for dataset, node_num in zip(dataset_list, node_num_list):
     tokens = standard_tokens.copy()
@@ -32,10 +37,6 @@ def map_diff(token):
     return (token[0], token[0]-token[1])
 
 for dataset, tokens in TOKENS_DICT.items():
-    
-    # tokens_diff = standard_tokens.copy()
-    # tokens_diff.extend([map_diff(token) for token in tokens if type(token) is tuple])
-    # TOKENS_DICT_DIFF[dataset] = tokens_diff
     # map adj_flatten / adj_flatten_sym tokens
     tokens_flat = standard_tokens.copy()
     tokens_flat.extend([0, 1])
@@ -51,13 +52,42 @@ for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     TOKENS_DICT_SEQ[dataset] = tokens_seq
     # map adj_list_diff tokens
     tokens_diff = standard_tokens.copy()
-    tokens = TOKENS_DICT[dataset]
     tokens_diff.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
     TOKENS_DICT_DIFF[dataset] = tokens_diff
+    # map bwr tokens
+    # tokens_bwr = standard_tokens.copy()
+    # for repeat in range(1,bw+1):
+    #     tokens_bwr.extend(list(map(list, (product([0,1], repeat=repeat)))))
+    # TOKENS_BWR[dataset] = tokens_bwr
+    
 # for dataset, num_nodes, num_node_types, num_edge_types in zip(['qm9', 'zinc'], ,):
 #     tokens_featured = standard_tokens.copy()
 #     tokens_featured 
-
+    
+TOKENS_SPM_DICT = defaultdict()
+# TODO: fix error for grid - adj_flatten
+for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'GDSS_grid']:
+    # for string_type in ['adj_seq', 'adj_seq_rel', 'adj_flatten', 'adj_flatten_sym']:
+    for string_type in ['adj_seq', 'adj_seq_rel']:
+        key = f'{dataset}_{string_type}'
+        TOKENS_SPM_DICT[key] = {}
+        sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_200.model")
+        TOKENS_SPM_DICT[key]['sp'] = sp
+        tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+        tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+        TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+        
+for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm']:
+    # for string_type in ['adj_seq', 'adj_seq_rel', 'adj_flatten', 'adj_flatten_sym']:
+    for string_type in ['adj_flatten', 'adj_flatten_sym']:
+        key = f'{dataset}_{string_type}'
+        TOKENS_SPM_DICT[key] = {}
+        sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_200.model")
+        TOKENS_SPM_DICT[key]['sp'] = sp
+        tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+        tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+        TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+        
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
 
@@ -65,13 +95,16 @@ TOKENS_KEY_DICT = {key: token_list_to_dict(value) for key, value in TOKENS_DICT.
 TOKENS_KEY_DICT_DIFF = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF.items()}
 TOKENS_KEY_DICT_FLATTEN = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_FLATTEN.items()}
 TOKENS_KEY_DICT_SEQ = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ.items()}
+TOKENS_KEY_DICT_SPM = {key: token_list_to_dict(value['tokens']) for key, value in TOKENS_SPM_DICT.items()}
 
-def token_to_id(data_name, string_type):
-    if string_type == 'adj_list':
+def token_to_id(data_name, string_type, is_token=False):
+    if is_token:
+        return TOKENS_KEY_DICT_SPM[f'{data_name}_{string_type}']
+    elif string_type == 'adj_list':
         return TOKENS_KEY_DICT[data_name]
     elif string_type == 'adj_list_diff':
         return TOKENS_KEY_DICT_DIFF[data_name]
-    elif string_type in ['adj_flatten', 'adj_flatten_sym']:
+    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         return TOKENS_KEY_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         return TOKENS_KEY_DICT_SEQ[data_name]
@@ -79,11 +112,22 @@ def token_to_id(data_name, string_type):
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
 
-def tokenize(adj, adj_list, data_name, string_type):
-
-    TOKEN2ID = token_to_id(data_name, string_type)
+def tokenize(adj, adj_list, data_name, string_type, is_token=False):
+    TOKEN2ID = token_to_id(data_name, string_type, is_token)
     tokens = ["[bos]"]
-    if string_type == 'adj_list':
+    if is_token:
+        key = f'{data_name}_{string_type}'
+        sp = TOKENS_SPM_DICT[key]['sp']
+        if string_type == 'adj_seq':
+            string = map_string_adj_seq(adj_list)
+        elif string_type == 'adj_seq_rel':
+            string = map_string_adj_seq_rel(adj_list)
+        elif string_type == 'adj_flatten':
+            string = "".join([str(int(elem)) for elem in torch.flatten(torch.tensor(adj.todense())).tolist()])
+        elif string_type == 'adj_flatten_sym':
+            string = map_string_flat_sym(adj)
+        tokens.extend(sp.encode_as_pieces(string))
+    elif string_type == 'adj_list':
         tokens.extend(adj_list)
     elif string_type == 'adj_list_diff':
         tokens.extend([map_diff(edge) for edge in adj_list])
@@ -116,18 +160,23 @@ def tokenize(adj, adj_list, data_name, string_type):
             tokens.append(diff)
             prev_src_node = src_node
             cur_tar_node = tar_node
+    elif string_type == 'bwr':
+        bw = bw_from_adj(adj.toarray())
+        tokens.extend(torch.flatten(flatten_forward(torch.tensor(adj.todense()), bw)).tolist())
         
     tokens.append("[eos]")
 
     return [TOKEN2ID[token] for token in tokens]
 
 
-def untokenize(sequence, data_name, string_type):
-    if string_type == 'adj_list':
+def untokenize(sequence, data_name, string_type, is_token):
+    if is_token:
+        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+    elif string_type == 'adj_list':
         tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':
         tokens = TOKENS_DICT_DIFF[data_name]
-    elif string_type in ['adj_flatten', 'adj_flatten_sym']:
+    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]

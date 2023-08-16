@@ -6,7 +6,7 @@ from tqdm import tqdm
 import math
 from time import time
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token, TOKENS_SPM_DICT
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
@@ -30,7 +30,7 @@ class TokenEmbedding(nn.Module):
             self.tokens = TOKENS_DICT[data_name]
         elif string_type == 'adj_list_diff':
             self.tokens = TOKENS_DICT_DIFF[data_name]
-        elif string_type in ['adj_flatten', 'adj_flatten_sym']:
+        elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
             self.tokens = TOKENS_DICT_FLATTEN[data_name]
         elif string_type in ['adj_seq', 'adj_seq_rel']:
             self.tokens = TOKENS_DICT_SEQ[data_name]
@@ -58,7 +58,7 @@ class TokenEmbedding(nn.Module):
         return output_tokens1, output_tokens2
         
     def forward(self, token_sequences):
-        if self.string_type in ['adj_flatten', 'adj_flatten_sym']:
+        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
         elif self.string_type in ['adj_seq', 'adj_seq_rel']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
@@ -104,17 +104,21 @@ class TransGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name, bw, num_nodes
+        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name, bw, num_nodes, is_token
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
-        if self.string_type == 'adj_list':
+        self.is_token = is_token
+        
+        if is_token:
+            self.tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+        elif self.string_type == 'adj_list':
             self.tokens = TOKENS_DICT[self.data_name]
         elif self.string_type == 'adj_list_diff':
             self.tokens = TOKENS_DICT_DIFF[self.data_name]
-        elif self.string_type in ['adj_flatten', 'adj_flatten_sym']:
+        elif self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
             self.tokens = TOKENS_DICT_FLATTEN[self.data_name]
         elif self.string_type in ['adj_seq', 'adj_seq_rel']:
             self.tokens = TOKENS_DICT_SEQ[self.data_name]
@@ -151,7 +155,7 @@ class TransGenerator(nn.Module):
 
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        TOKEN2ID = token_to_id(self.data_name, self.string_type)
+        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token)
 
         out = self.token_embedding_layer(sequences)
    
@@ -194,7 +198,7 @@ class TransGenerator(nn.Module):
         '''
         sequential generation
         '''
-        TOKEN2ID = token_to_id(self.data_name, self.string_type)
+        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for _ in tqdm(range(max_len), "generation"):

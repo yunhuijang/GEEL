@@ -14,9 +14,11 @@ import random
 import subprocess as sp
 from eden.graph import vectorize
 from sklearn.metrics.pairwise import pairwise_kernels
+import json
 
-from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ
-
+from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, TOKENS_SPM_DICT
+from data.data_utils import load_graphs
+from evaluation.evaluation_spectre import eval_acc_grid_graph, eval_acc_planar_graph, eval_acc_sbm_graph
 
 def save_graph_list(log_folder_name, exp_name, gen_graph_list):
     if not(os.path.isdir(f'./samples/graphs/{log_folder_name}')):
@@ -41,16 +43,18 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
 
     return elem_acc, sequence_acc
 
-def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type):
+def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token):
     # TODO: logits와 정답 batched_sequence_data만의 loss (현재) + 개수 맞히는 loss 추가
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
-    if string_type == 'adj_list':
+    if is_token:
+        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+    elif string_type == 'adj_list':
         tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':
         tokens = TOKENS_DICT_DIFF[data_name]
-    elif string_type in ['adj_flatten', 'adj_flatten_sym']:
+    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]    
@@ -394,3 +398,33 @@ def eval_graph_list(graph_ref_list, graph_pred_list, methods=None, kernels=None)
             results[method] = round(METHOD_NAME_TO_FUNC[method](graph_ref_list, graph_pred_list, kernels[method]), 6)
         print('\033[91m' + f'{method:9s}' + '\033[0m' + ' : ' + '\033[94m' +  f'{results[method]:.6f}' + '\033[0m')
     return results
+
+def check_generated_samples(dataset_name='GDSS_com', string_type='adj_seq_rel', order='C-M'):
+    '''
+    Evaluate generated samples from the best model (json)
+    '''
+    with open(os.path.join("resource", f'best_model.json')) as f:
+        data = json.load(f)
+    ts = data[dataset_name][string_type]
+    with open(os.path.join("samples", f'graphs/{dataset_name}/{ts}.pkl'), 'rb') as f:
+        sampled_graphs = pickle.load(f)
+    _, _, test_graphs = load_graphs(dataset_name, order)
+    methods, kernels = load_eval_settings('')
+    # results = eval_graph_list(test_graphs, sampled_graphs[:len(test_graphs)], methods=methods, kernels=kernels)
+    results = {}
+    for graph in test_graphs:
+        nx.set_node_attributes(graph, 0, "label")
+        nx.set_edge_attributes(graph, 1, "label")
+    for graph in sampled_graphs:
+        nx.set_node_attributes(graph, 0, "label")
+        nx.set_edge_attributes(graph, 1, "label")
+
+    scores_nspdk = eval_graph_list(test_graphs, sampled_graphs[:len(test_graphs)], methods=['nspdk'])['nspdk']
+    results['nspdk'] = scores_nspdk
+    if dataset_name == 'planar':
+        results['validity'] = eval_acc_planar_graph(sampled_graphs)
+    elif dataset_name == 'GDSS_grid':
+        results['validity'] = eval_acc_grid_graph(sampled_graphs)
+    elif dataset_name == 'sbm':
+        results['validity'] = eval_acc_sbm_graph(sampled_graphs)
+    print(results)

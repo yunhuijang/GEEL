@@ -37,7 +37,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             abs_pos=hparams.abs_pos,
             data_name=hparams.dataset_name,
             bw=self.bw,
-            num_nodes=self.num_nodes
+            num_nodes=self.num_nodes,
+            is_token=hparams.is_token
         )
 
     ### 
@@ -72,7 +73,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type)
+        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token)
         statistics["loss/total"] = loss
         # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
@@ -96,13 +97,14 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
-        parser.add_argument("--max_epochs", type=int, default=20)
+        parser.add_argument("--max_epochs", type=int, default=100)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
-        parser.add_argument("--max_len", type=int, default=245)
-        parser.add_argument("--string_type", type=str, default='adj_seq')
+        parser.add_argument("--max_len", type=int, default=289)
+        parser.add_argument("--string_type", type=str, default='adj_flatten')
+        
         
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
@@ -112,6 +114,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
         parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--abs_pos", action="store_true")
+        parser.add_argument("--is_token", action="store_true")
         
 
         return parser

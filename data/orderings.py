@@ -10,6 +10,7 @@ import torch
 from torch_geometric.data import Data
 from torch_geometric.utils import from_scipy_sparse_matrix
 
+# Codes adapted from https://github.com/Genentech/bandwidth-graph-generation
 
 def bw_from_adj(A: np.ndarray) -> int:
     """calculate bandwidth from adjacency matrix"""
@@ -42,32 +43,6 @@ def bw_from_order(G: nx.Graph, order: list) -> int:
     return bw_from_adj(nx.to_numpy_array(G, nodelist=order))
 
 
-# def random_DFS_order(G: nx.Graph, seed=0):
-#     """
-#     :param G: Graph
-#     :return: random DFS order, maximum queue length (equal to bandwidth of ordering)
-#     """
-#     connected_components = list(nx.connected_components(G))
-#     if len(connected_components) > 1:
-#         graphs = [G.subgraph(cc) for cc in connected_components]
-#     else:
-#         graphs = [G]
-    
-#     order_list = []
-#     bw_list = []
-#     for graph in graphs:
-#         start = random.choice(list(graph))
-#         edges = nx.dfs_edges(graph, start)
-#         nodes = [start] + [v for u, v in edges]
-#         order_list.append(nodes)
-#         bw = bw_from_adj(nx.adjacency_matrix(graph))
-#         bw_list.append(bw)
-    
-#     if len(order_list) == 1:
-#         return order_list[0], bw
-#     else:
-#         return list(chain(*order_list)), max(bw_list)
-
 def random_DFS_order(G: nx.Graph, seed=0) -> tuple[list[int], int]:
     """
     :param G: Graph
@@ -93,51 +68,6 @@ def uniform_random_order(G: nx.Graph) -> tuple:
     random.shuffle(order)
     bw = bw_from_order(G, order)
     return order, bw
-
-# def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None) -> tuple:
-#     """
-#     adapted from NX source.
-#     :return: node order, bandwidth
-#     """
-#     # the cuthill mckee algorithm for connected graphs
-#     random.seed(seed)
-#     connected_components = list(nx.connected_components(G))
-#     if len(connected_components) > 1:
-#         graphs = [G.subgraph(cc) for cc in connected_components]
-#     else:
-#         graphs = [G]
-    
-#     order_list = []
-#     bw_list = []
-#     for graph in graphs:
-#         if heuristic is None:
-#             start = pseudo_peripheral_node(graph, seed)
-#         else:
-#             start = heuristic(graph)
-#         visited = {start}
-#         queue = deque([start])
-#         max_q_len = 1
-#         i = 0
-#         order = []
-#         while queue:
-#             parent = queue.popleft()
-#             order.append(parent)
-#             random.seed(seed+i)
-#             key = random.random()
-#             nd = sorted(list(G.degree(set(G[parent]) - visited)), key=lambda x: (x[1], key))
-#             children = [n for n, d in nd]
-#             visited.update(children)
-#             queue.extend(children)
-#             max_q_len = max(len(queue), max_q_len)
-#             i+=1
-#         order_list.append(order)
-#         bw = bw_from_adj(nx.adjacency_matrix(graph))
-#         bw_list.append(bw)
-    
-#     if len(order_list) == 1:
-#         return order_list[0], bw
-#     else:
-#         return list(chain(*order_list)), max(bw_list)
 
 def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None) -> tuple[list[int], int]:
     """

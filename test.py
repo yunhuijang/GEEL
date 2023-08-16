@@ -2,42 +2,22 @@ import math
 import torch
 import numpy as np
 import networkx as nx
-
+import sentencepiece as spm
 
 from data.orderings import bw_from_adj
-from data.data_utils import load_graphs, get_max_len
+from data.data_utils import unflatten_forward, train_data_to_string
+from evaluation.evaluation import check_generated_samples
 
 
 from torch_geometric.datasets import MNISTSuperpixels
 
 from scipy.stats import entropy
 
-
-
-
-graphs = MNISTSuperpixels(root='resource', train=True)
-print('hi')
-# print('hi')
-# dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm']
-# # # dataset_list = ['proteins']
-# order = 'C-M'
-# for dataset_name in dataset_list:
-#     # print(dataset_name)
-#     # print(get_max_len(dataset_name))
-#     train_graphs, val_graphs, test_graphs = load_graphs(dataset_name, order)
-#     bw = 0
-#     for graphs in [train_graphs, val_graphs, test_graphs]:
-#         adjs = [nx.adjacency_matrix(graph) for graph in graphs]
-#         bw = max(max([bw_from_adj(adj.toarray()) for adj in adjs]), bw)
-#     print(dataset_name)
-#     print(bw)
-
-# def bw_from_adj(A: np.ndarray) -> int:
-#     """calculate bandwidth from adjacency matrix"""
-#     band_sizes = np.arange(A.shape[0]) - A.argmax(axis=1)
-#     return band_sizes.max()
-
-# matrix = np.array([[1,1,1,0,0,0,0,0], [1,1,1,1,0,0,0,0], [1,1,1,1,1,0,0,0], [0,1,1,1,1,1,0,0],
-#                   [0,0,1,1,1,1,1,0], [0,0,0,1,1,1,1,1], [0,0,0,0,1,1,1,1], [0,0,0,0,0,1,1,1]])
-
-# print(bw_from_adj(matrix))
+for dataset_name in ['GDSS_com']:
+# for dataset_name in ['GDSS_com']:
+    for string_type in ['adj_flatten']:
+        # check_generated_samples('GDSS_com')
+        check_generated_samples(dataset_name, string_type)
+        # train_data_to_string(dataset_name, string_type)
+    # for string_type in ['adj_seq']:
+        # spm.SentencePieceTrainer.Train(f"--input=samples/string/{dataset_name}/{string_type}.txt --model_prefix=resource/tokenizer/{dataset_name}/{string_type}_{vocab_size} --vocab_size={vocab_size} --model_type=bpe --character_coverage=1.0")
