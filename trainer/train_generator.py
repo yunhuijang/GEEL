@@ -34,6 +34,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.string_type = hparams.string_type
         self.order = hparams.order
         self.is_token = hparams.is_token
+        self.vocab_size = hparams.vocab_size
     
         dataset_cls = {
             "GDSS_grid": GridDataset,
@@ -71,7 +72,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
         self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
         
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token)
+        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
         self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
         self.num_nodes = get_max_len(hparams.dataset_name)[1]

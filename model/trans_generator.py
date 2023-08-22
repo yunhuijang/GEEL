@@ -104,16 +104,18 @@ class TransGenerator(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, data_name, bw, num_nodes, is_token
+        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
+        data_name, bw, num_nodes, is_token, vocab_size
     ):
         super(TransGenerator, self).__init__()
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
         self.is_token = is_token
+        self.vocab_size = vocab_size
         
         if is_token:
-            self.tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+            self.tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
         elif self.string_type == 'adj_list':
             self.tokens = TOKENS_DICT[self.data_name]
         elif self.string_type == 'adj_list_diff':
@@ -126,7 +128,7 @@ class TransGenerator(nn.Module):
             assert False, "No token type"
         self.ID2TOKEN = id_to_token(self.tokens)
         
-        self.TOKEN2ID = token_to_id(self.data_name, self.string_type)
+        self.TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
         self.learn_pos = learn_pos
         self.abs_pos = abs_pos
         self.max_len = max_len
@@ -155,7 +157,7 @@ class TransGenerator(nn.Module):
 
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token)
+        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
 
         out = self.token_embedding_layer(sequences)
    
@@ -198,7 +200,7 @@ class TransGenerator(nn.Module):
         '''
         sequential generation
         '''
-        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token)
+        TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for _ in tqdm(range(max_len), "generation"):

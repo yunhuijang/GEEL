@@ -43,13 +43,13 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
 
     return elem_acc, sequence_acc
 
-def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token):
+def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token, vocab_size=200):
     # TODO: logits와 정답 batched_sequence_data만의 loss (현재) + 개수 맞히는 loss 추가
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
     if is_token:
-        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
         tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':

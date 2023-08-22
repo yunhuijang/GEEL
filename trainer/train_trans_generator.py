@@ -38,7 +38,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             data_name=hparams.dataset_name,
             bw=self.bw,
             num_nodes=self.num_nodes,
-            is_token=hparams.is_token
+            is_token=hparams.is_token,
+            vocab_size=hparams.vocab_size
         )
 
     ### 
@@ -83,7 +84,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
+        parser.add_argument("--dataset_name", type=str, default="planar")
         parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -102,8 +103,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
-        parser.add_argument("--max_len", type=int, default=289)
-        parser.add_argument("--string_type", type=str, default='adj_flatten')
+        parser.add_argument("--max_len", type=int, default=128)
+        parser.add_argument("--string_type", type=str, default='adj_seq')
         
         
         # transformer
@@ -115,6 +116,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--abs_pos", action="store_true")
         parser.add_argument("--is_token", action="store_true")
+        parser.add_argument("--vocab_size", type=int, default=400)
         
 
         return parser
