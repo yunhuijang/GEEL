@@ -9,10 +9,14 @@ ALT is built in Python 3.10.0, PyTorch 1.12.1, and PyTorch Geometric 2.2.0 . Use
 ```sh
 pip install Cython
 pip install -r requirements.txt
-pip install rdkit==2020.9.5
+pip install rdkit==2022.3.3
 pip install git+https://github.com/fabriziocosta/EDeN.git
 pip install pytorch-lightning==1.9.3
 pip install treelib
+pip install sentencepiece
+pip install pyemd
+pip install wandb
+ pip install networkx==2.8.7
 ```
 
 ## Running experiments
