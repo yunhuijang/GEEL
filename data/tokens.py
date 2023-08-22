@@ -172,9 +172,9 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
     return [TOKEN2ID[token] for token in tokens]
 
 
-def untokenize(sequence, data_name, string_type, is_token):
+def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
     if is_token:
-        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}']['tokens']
+        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
         tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':

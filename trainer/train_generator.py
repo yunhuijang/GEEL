@@ -166,8 +166,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             with torch.no_grad():
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
 
-            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token)[1] for sequence in sequences.tolist()]
+            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
+            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

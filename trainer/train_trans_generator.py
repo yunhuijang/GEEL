@@ -74,7 +74,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token)
+        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
         statistics["loss/total"] = loss
         # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
