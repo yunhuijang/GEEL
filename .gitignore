@@ -8,3 +8,6 @@ samples/
 wandb/
 resource/processed/
 resource/raw/
+*.vocab
+*.model
+*.csv
