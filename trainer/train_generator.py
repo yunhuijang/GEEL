@@ -1,6 +1,7 @@
 import argparse
 import torch
 from tqdm import tqdm
+import time
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
@@ -106,7 +107,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     def training_step(self, batched_data, batch_idx):
         loss, statistics = self.shared_step(batched_data)
         for key, val in statistics.items():
-            # self.log(f"train/{key}", val, on_step=True, logger=True)
+            self.log(f"train/{key}", val, on_step=True, logger=True)
             wandb.log({f"train/{key}": val})
         return loss
 
@@ -123,7 +124,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
 
     def check_samples(self):
         num_samples = self.hparams.num_samples if not self.trainer.sanity_checking else 2
-        adj_lists, org_string_list = self.sample(num_samples)
+        adj_lists, org_string_list, generation_time = self.sample(num_samples)
+        wandb.log({"generation_time": round(generation_time, 3)})
         
         if not self.trainer.sanity_checking:
             adjs = map_samples_to_adjs(adj_lists, self.string_type, self.is_token)
@@ -161,17 +163,19 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         while offset < num_samples:
             cur_num_samples = min(num_samples - offset, self.hparams.sample_batch_size)
             offset += cur_num_samples
-
             self.model.eval()
             with torch.no_grad():
+                t0 = time.perf_counter()
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
-
+                generation_time = time.perf_counter() - t0
+                
+                
             strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
             org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             
-        return string_list, org_string_list
+        return string_list, org_string_list, generation_time
         
     @staticmethod
     def add_args(parser):

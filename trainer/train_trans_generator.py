@@ -8,7 +8,8 @@ import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, Timer
+from datetime import date
 
 from evaluation.evaluation import compute_sequence_cross_entropy
 from model.trans_generator import TransGenerator
@@ -132,20 +133,29 @@ if __name__ == "__main__":
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
     
     wandb.config.update(hparams)
-
+    
 
     model = TransGeneratorLightningModule(hparams)
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id)
+    checkpoint_callback_val = ModelCheckpoint(
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'val'),
+        monitor='val/loss/total',
     )
-
+    checkpoint_callback_train = ModelCheckpoint(
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'train'),
+        monitor='train/loss/total', save_on_train_epoch_end=True
+    )
+    checkpoint_callback_last = ModelCheckpoint(
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'last')
+    )
+    timer = Timer(duration="14:00:00:00")
     trainer = pl.Trainer(
         devices=1,
         accelerator='gpu',
         default_root_dir="/resource/log/",
         max_epochs=hparams.max_epochs,
         gradient_clip_val=hparams.gradient_clip_val,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback_last, checkpoint_callback_val, checkpoint_callback_train, timer],
         logger=wandb_logger
     )
     trainer.fit(model)
+    wandb.log({"train_time": round(timer.time_elapsed("train"),3)})    
