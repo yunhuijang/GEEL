@@ -61,10 +61,8 @@ def adj_list_diff_to_adj_list(adj_list_diff):
 
     
 def train_val_test_split(
-    data: list,
-    data_name='GDSS_com',
-    train_size: float = 0.7, val_size: float = 0.1, test_size: float = 0.2,
-    seed: int = 42,
+    data: list, data_name='GDSS_com',
+    train_size: float = 0.7, val_size: float = 0.1, seed: int = 42,
 ):
     if data_name in ['qm9', 'zinc']:
         # code adpated from https://github.com/harryjo97/GDSS
@@ -83,6 +81,13 @@ def train_val_test_split(
         train_len = int(round((len(data) - test_len)*0.8))
         val_len = len(data) - train_len - test_len
         train, val, test = random_split(data, [train_len, val_len, test_len], generator=torch.Generator().manual_seed(1234))
+    elif data_name in ['point', 'lobster']:
+        # npr = np.random.RandomState(seed)
+        # npr.shuffle(data)
+        val_size = 0.2
+        train = data[int(val_size*len(data)):int((train_size+val_size)*len(data))]
+        val = data[:int(val_size*len(data))]
+        test = data[int((train_size+val_size)*len(data)):]
     else:
         train_val, test = train_test_split(data, train_size=train_size + val_size, shuffle=False)
         train, val = train_test_split(train_val, train_size=train_size / (train_size + val_size), random_state=seed, shuffle=True)
@@ -177,6 +182,59 @@ def load_proteins_data(data_dir):
 
     return adjs
 
+def load_point_data(data_dir, min_num_nodes, max_num_nodes, node_attributes, graph_labels):
+    print('Loading point cloud dataset')
+    name = 'FIRSTMM_DB'
+    G = nx.Graph()
+    # load data
+    path = os.path.join(data_dir, name)
+    data_adj = np.loadtxt(
+        os.path.join(path, f'{name}_A.txt'), delimiter=',').astype(int)
+    if node_attributes:
+        data_node_att = np.loadtxt(os.path.join(path, f'{name}_node_attributes.txt'), 
+                                   delimiter=',')
+    data_node_label = np.loadtxt(os.path.join(path, f'{name}_node_labels.txt'), 
+                                 delimiter=',').astype(int)
+    data_graph_indicator = np.loadtxt(os.path.join(path, f'{name}_graph_indicator.txt'),
+                                      delimiter=',').astype(int)
+    if graph_labels:
+        data_graph_labels = np.loadtxt(os.path.join(path, f'{name}_graph_labels.txt'), 
+                                       delimiter=',').astype(int)
+
+    data_tuple = list(map(tuple, data_adj))
+
+    # add edges
+    G.add_edges_from(data_tuple)
+    # add node attributes
+    for i in range(data_node_label.shape[0]):
+        if node_attributes:
+            G.add_node(i + 1, feature=data_node_att[i])
+            G.add_node(i + 1, label=data_node_label[i])
+    G.remove_nodes_from(list(nx.isolates(G)))
+
+    # remove self-loop
+    G.remove_edges_from(nx.selfloop_edges(G))
+
+    # split into graphs
+    graph_num = data_graph_indicator.max()
+    node_list = np.arange(data_graph_indicator.shape[0]) + 1
+    graphs = []
+    max_nodes = 0
+    for i in range(graph_num):
+        # find the nodes for each graph
+        nodes = node_list[data_graph_indicator == i + 1]
+        G_sub = G.subgraph(nodes)
+        if graph_labels:
+            G_sub.graph['label'] = data_graph_labels[i]
+
+        if G_sub.number_of_nodes() >= min_num_nodes and G_sub.number_of_nodes() <= max_num_nodes:
+            graphs.append(G_sub)
+        if G_sub.number_of_nodes() > max_nodes:
+            max_nodes = G_sub.number_of_nodes()
+            
+    print('Loaded')
+    return graphs
+
 def load_graphs(data_name, order='C-M'):
     raw_dir = f"resource/{data_name}"
     if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid']:
@@ -187,6 +245,30 @@ def load_graphs(data_name, order='C-M'):
         graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
     elif data_name == 'mnist':
         train_graphs, val_graphs, test_graphs = mnist_to_graphs()
+    # Codes adpadted from https://github.com/lrjconan/GRAN
+    elif data_name == 'lobster':
+        graphs = []
+        p1 = 0.7
+        p2 = 0.7
+        count = 0
+        min_node = 10
+        max_node = 100
+        max_edge = 0
+        mean_node = 80
+        num_graphs = 100
+
+        seed_tmp = 1234
+        while count < num_graphs:
+            G = nx.random_lobster(mean_node, p1, p2, seed=seed_tmp)
+            if len(G.nodes()) >= min_node and len(G.nodes()) <= max_node:
+                graphs.append(G)
+                if G.number_of_edges() > max_edge:
+                    max_edge = G.number_of_edges()
+                count += 1
+            seed_tmp += 1
+    elif data_name == 'point':
+        graphs = load_point_data(DATA_DIR, min_num_nodes=0, max_num_nodes=10000, 
+                                  node_attributes=False, graph_labels=True)
     else: # planar, sbm
         adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
         graphs = [adj_to_graph(adj) for adj in adjs]

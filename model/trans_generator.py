@@ -5,6 +5,9 @@ import math
 from tqdm import tqdm
 import math
 from time import time
+import os
+
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token, TOKENS_SPM_DICT
 
@@ -40,8 +43,8 @@ class TokenEmbedding(nn.Module):
         self.data_name = data_name
     
     def split_nodes(self, id_to_token, token_sequences, device):
-        mapping_tensor1 = torch.zeros(len(id_to_token), dtype=torch.long, device=device)
-        mapping_tensor2 = torch.zeros(len(id_to_token), dtype=torch.long, device=device)
+        mapping_tensor1 = torch.zeros(len(id_to_token), dtype=torch.long)
+        mapping_tensor2 = torch.zeros(len(id_to_token), dtype=torch.long)
 
         for key, value in id_to_token.items():
             if isinstance(value, tuple):
@@ -55,7 +58,7 @@ class TokenEmbedding(nn.Module):
         output_tokens1 = mapping_tensor1[token_sequences]
         output_tokens2 = mapping_tensor2[token_sequences]
     
-        return output_tokens1, output_tokens2
+        return output_tokens1.to(device), output_tokens2.to(device)
         
     def forward(self, token_sequences):
         if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:

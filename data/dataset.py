@@ -73,6 +73,16 @@ class ProteinsDataset(EgoDataset):
     raw_dir = f'{DATA_DIR}/proteins'
     is_mol = False
     
+class LobsterDataset(EgoDataset):
+    data_name = 'lobster'
+    raw_dir = f'{DATA_DIR}/lobster'
+    is_mol = False
+    
+class PointCloudDataset(EgoDataset):
+    data_name = 'point'
+    raw_dir = f'{DATA_DIR}/point'
+    is_mol = False
+    
 class MNISTSuperPixelDataset(EgoDataset):
     data_name = 'mnist'
     raw_dir = f'{DATA_DIR}/mnist'

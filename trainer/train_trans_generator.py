@@ -85,8 +85,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="planar")
-        parser.add_argument("--batch_size", type=int, default=128)
+        parser.add_argument("--dataset_name", type=str, default="lobster")
+        parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 
         parser.add_argument("--order", type=str, default="C-M")
@@ -96,7 +96,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.0002)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=100)
@@ -104,8 +104,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
-        parser.add_argument("--max_len", type=int, default=128)
-        parser.add_argument("--string_type", type=str, default='adj_seq')
+        parser.add_argument("--max_len", type=int, default=99)
+        parser.add_argument("--string_type", type=str, default='adj_list')
         
         
         # transformer

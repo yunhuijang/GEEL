@@ -12,7 +12,7 @@ import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, MNISTSuperPixelDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, MNISTSuperPixelDataset, LobsterDataset, PointCloudDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
@@ -48,7 +48,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'planar': PlanarDataset,
             'sbm': SBMDataset,
             'proteins': ProteinsDataset,
-            'mnist': MNISTSuperPixelDataset
+            'mnist': MNISTSuperPixelDataset,
+            'lobster': LobsterDataset,
+            'point': PointCloudDataset
         }.get(hparams.dataset_name)
         # if hparams.dataset_name in ['qm9', 'zinc']:
             
@@ -72,7 +74,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         #     self.test_graphs = pickle.load(f)
             
         self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
-        
+
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
         self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
