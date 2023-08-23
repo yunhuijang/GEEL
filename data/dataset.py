@@ -83,10 +83,20 @@ class PointCloudDataset(EgoDataset):
     raw_dir = f'{DATA_DIR}/point'
     is_mol = False
     
-class MNISTSuperPixelDataset(EgoDataset):
-    data_name = 'mnist'
-    raw_dir = f'{DATA_DIR}/mnist'
+class EgoLargeDataset(EgoDataset):
+    data_name = 'ego'
+    raw_dir = f'{DATA_DIR}/ego'
     is_mol = False
-    def __init__(self, graphs, string_type):
-        super().__init__
-        self.xs = [1 if elem > 0 else 0 for graph in graphs]
+    
+class ComLargeDataset(EgoDataset):
+    data_name = 'community'
+    raw_dir = f'{DATA_DIR}/community'
+    is_mol = False  
+    
+# class MNISTSuperPixelDataset(EgoDataset):
+#     data_name = 'mnist'
+#     raw_dir = f'{DATA_DIR}/mnist'
+#     is_mol = False
+#     def __init__(self, graphs, string_type):
+#         super().__init__
+#         self.xs = [1 if elem > 0 else 0 for graph in graphs]

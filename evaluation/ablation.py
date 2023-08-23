@@ -68,8 +68,8 @@ def compute_total_entropy(data_name, string_type, type='product', is_token=False
     adjs = [nx.adjacency_matrix(graph) for graph in graphs_dict[split]]
     num_graphs = len(adjs)
     adj_lists = [adj_to_adj_list(adj) for adj in adjs]
-    tokenized_seqs = [tokenize(adj, adj_list, data_name, string_type, is_token) for adj, adj_list in zip(adjs, adj_lists)]
-    # return max([len(seq) for seq in tokenized_seqs])
+    tokenized_seqs = [tokenize(adj, adj_list, data_name, string_type, is_token, 400) for adj, adj_list in zip(adjs, adj_lists)]
+    return max([len(seq) for seq in tokenized_seqs])
     tokens_list = [np.unique(tok_seq, return_counts=True)[0] for tok_seq in tokenized_seqs]
     counts_list = [np.unique(tok_seq, return_counts=True)[1] for tok_seq in tokenized_seqs]
     total_list = list(chain(*tokenized_seqs))
@@ -86,10 +86,11 @@ def compute_total_entropy(data_name, string_type, type='product', is_token=False
     # entropy_list = [entropy(q, num_graphs) for q in qs]
     return np.mean(entropy_list)
     
-dataset_list = ['GDSS_ego', 'GDSS_com', 'planar', 'GDSS_enz', 'sbm']
-# dataset_list = ['GDSS_grid']
+# dataset_list = ['GDSS_ego', 'GDSS_com', 'planar', 'GDSS_enz', 'sbm']
+dataset_list = ['GDSS_grid']
 # string_type_list = ['adj_flatten', 'adj_flatten_sym', 'adj_list', 'adj_list_diff', 'adj_seq', 'adj_seq_rel']
-string_type_list = ['adj_flatten', 'adj_flatten_sym']
+# string_type_list = ['adj_flatten', 'adj_flatten_sym']
+string_type_list = ['adj_seq', 'adj_seq_rel']
 # string_type_list = ['adj_flatten']
 # string_type_list = ['adj_seq']
 df = pd.DataFrame(index=string_type_list, columns=dataset_list)

@@ -12,7 +12,7 @@ import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, MNISTSuperPixelDataset, LobsterDataset, PointCloudDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 #from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
@@ -48,9 +48,11 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'planar': PlanarDataset,
             'sbm': SBMDataset,
             'proteins': ProteinsDataset,
-            'mnist': MNISTSuperPixelDataset,
+            # 'mnist': MNISTSuperPixelDataset,
             'lobster': LobsterDataset,
-            'point': PointCloudDataset
+            'point': PointCloudDataset,
+            'ego': EgoLargeDataset,
+            'community': ComLargeDataset
         }.get(hparams.dataset_name)
         # if hparams.dataset_name in ['qm9', 'zinc']:
             

@@ -10,6 +10,7 @@ import json
 import math
 from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.utils import to_networkx
+from scipy.sparse import lil_matrix, vstack
 
 from data.orderings import ORDER_FUNCS, order_graphs
 
@@ -235,6 +236,54 @@ def load_point_data(data_dir, min_num_nodes, max_num_nodes, node_attributes, gra
     print('Loaded')
     return graphs
 
+# Codes adpated from https://github.com/JiaxuanYou/graph-generation
+def parse_index_file(filename):
+    index = []
+    for line in open(filename):
+        index.append(int(line.strip()))
+    return index
+
+def load_ego_data(dataset):
+    names = ['x', 'tx', 'allx', 'graph']
+    objects = []
+    for i in range(len(names)):
+        load = pickle.load(open(f"{DATA_DIR}/ego/ind.{dataset}.{names[i]}", 'rb'), encoding='latin1')
+        objects.append(load)
+    x, tx, allx, graph = tuple(objects)
+    test_idx_reorder = parse_index_file(f"{DATA_DIR}/ego/ind.{dataset}.test.index")
+    test_idx_range = np.sort(test_idx_reorder)
+
+    test_idx_range_full = range(min(test_idx_reorder), max(test_idx_reorder) + 1)
+    tx_extended = lil_matrix((len(test_idx_range_full), x.shape[1]))
+    tx_extended[test_idx_range - min(test_idx_range), :] = tx
+    tx = tx_extended
+
+    features = vstack((allx, tx)).tolil()
+    features[test_idx_reorder, :] = features[test_idx_range, :]
+    G = nx.from_dict_of_lists(graph)
+    adj = nx.adjacency_matrix(G)
+    return adj, features, G
+
+def n_community(c_sizes, p_inter=0.05):
+    graphs = [nx.gnp_random_graph(c_sizes[i], 0.3, seed=i) for i in range(len(c_sizes))]
+    G = nx.disjoint_union_all(graphs)
+    communities = [G.subgraph(c) for c in nx.connected_components(G)]
+    for i in range(len(communities)):
+        subG1 = communities[i]
+        nodes1 = list(subG1.nodes())
+        for j in range(i+1, len(communities)):
+            subG2 = communities[j]
+            nodes2 = list(subG2.nodes())
+            has_inter_edge = False
+            for n1 in nodes1:
+                for n2 in nodes2:
+                    if np.random.rand() < p_inter:
+                        G.add_edge(n1, n2)
+                        has_inter_edge = True
+            if not has_inter_edge:
+                G.add_edge(nodes1[0], nodes2[0])
+    return G
+
 def load_graphs(data_name, order='C-M'):
     raw_dir = f"resource/{data_name}"
     if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid']:
@@ -269,6 +318,25 @@ def load_graphs(data_name, order='C-M'):
     elif data_name == 'point':
         graphs = load_point_data(DATA_DIR, min_num_nodes=0, max_num_nodes=10000, 
                                   node_attributes=False, graph_labels=True)
+    # Codes adpated from https://github.com/JiaxuanYou/graph-generation
+    elif data_name == 'ego':
+        _, _, G = load_ego_data(dataset='citeseer')
+        G = max([G.subgraph(c) for c in nx.connected_components(G)], key=len)
+        G = nx.convert_node_labels_to_integers(G)
+        graphs = []
+        for i in range(G.number_of_nodes()):
+            G_ego = nx.ego_graph(G, i, radius=3)
+            if G_ego.number_of_nodes() >= 50 and (G_ego.number_of_nodes() <= 400):
+                graphs.append(G_ego)
+    elif data_name == 'community':
+        graphs = []
+        num_communities = 2
+        
+        print('Creating dataset with ', num_communities, ' communities')
+        for k in range(500):
+            np.random.seed(1234+k)
+            c_sizes = np.random.choice(np.arange(30, 81), num_communities)
+            graphs.append(n_community(c_sizes, p_inter=0.05))
     else: # planar, sbm
         adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
         graphs = [adj_to_graph(adj) for adj in adjs]
