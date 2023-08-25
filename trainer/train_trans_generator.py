@@ -85,7 +85,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="community")
+        parser.add_argument("--dataset_name", type=str, default="qm9")
         parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 

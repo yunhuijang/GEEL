@@ -9,6 +9,7 @@ import networkx as nx
 import torch
 from torch_geometric.data import Data
 from torch_geometric.utils import from_scipy_sparse_matrix
+from tqdm import tqdm
 
 # Codes adapted from https://github.com/Genentech/bandwidth-graph-generation
 
@@ -121,7 +122,7 @@ class OrderedGraph:
     ordering: list
     bw: int
 
-    def to_data(self) -> Data:
+    def to_mnist_data(self) -> Data:
         A = nx.to_scipy_sparse_matrix(self.graph, nodelist=self.ordering)
         edge_index = from_scipy_sparse_matrix(A)[0]
         graph_attr = np.array(self.graph.graph['y'])
@@ -136,6 +137,16 @@ class OrderedGraph:
             dtype=torch.float32,
         )
 
+    def to_mol_data(self):
+        A = nx.to_scipy_sparse_matrix(self.graph, nodelist=self.ordering)
+        edge_index = from_scipy_sparse_matrix(A)[0]
+        # edge_index = torch.cat((edge_index[0][edge_index[0] < edge_index[1]].unsqueeze(0), edge_index[1][edge_index[0] < edge_index[1]].unsqueeze(0)), dim=0)
+        x = np.array([self.graph.nodes[i]['label'] for i in self.ordering])
+        order_dict = {i:j for i, j in zip(range(len(self.ordering)), self.ordering)}
+        source_node_list = [order_dict[ei] for ei in edge_index[0].tolist()]
+        target_node_list = [order_dict[ei] for ei in edge_index[1].tolist()]
+        edge_attr = np.array([self.graph.edges[(src_node, tar_node)]['label'] for src_node, tar_node in zip(source_node_list, target_node_list)])
+        return Data(edge_index=edge_index, x=x, edge_attr=edge_attr)
 
 def order_graphs(
     graphs: list,
@@ -143,7 +154,7 @@ def order_graphs(
     num_repetitions: int = 1, seed: int = 0, is_mol=False
 ):
     ordered_graphs = []
-    for i, graph in enumerate(graphs):
+    for i, graph in enumerate(tqdm(graphs, 'Order graphs')):
         for j in range(num_repetitions):
             # seed = i * (j + 1) + j
             random.seed(seed)

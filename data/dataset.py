@@ -6,6 +6,7 @@ from torch_geometric.datasets import MNISTSuperpixels
 from data.data_utils import adj_to_adj_list
 from data.tokens import tokenize
 from data.orderings import bw_from_adj
+from data.mol_tokens import tokenize_mol
 
 
 DATA_DIR = "resource"
@@ -52,8 +53,23 @@ class QM9Dataset(EgoDataset):
     data_name = "qm9"
     raw_dir = f"{DATA_DIR}/qm9"
     is_mol = True
+    
+    def __init__(self, graphs, string_type, is_token, vocab_size=200):
+        self.graphs = graphs
+        self.adjs = [nx.adjacency_matrix(graph) for graph in graphs]
+        self.adj_list = [adj_to_adj_list(adj) for adj in self.adjs]
+        self.string_type = string_type
+        self.bw = max([bw_from_adj(adj.toarray()) for adj in self.adjs])
+        self.is_token = is_token
+        self.vocab_size = vocab_size
         
-class ZINCDataset(EgoDataset):
+    # for node, edge features
+    def __getitem__(self, idx: int):
+        # return tokenize adj, tokenize_feature
+        return (torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type, self.is_token, self.vocab_size)), 
+                torch.LongTensor(tokenize_mol(self.adjs[idx], self.adj_list[idx], nx.get_node_attributes(self.graphs[idx], 'x'), nx.get_edge_attributes(self.graphs[idx], 'edge_attr') , self.data_name, self.string_type)))
+    
+class ZINCDataset(QM9Dataset):
     data_name = 'zinc'
     raw_dir = f'{DATA_DIR}/zinc'
     is_mol = True

@@ -15,15 +15,15 @@ UNK_TOKEN = "<unk>"
 
 standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
-dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 'proteins', 'lobster', 'point', 'ego', 'community']
+dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 
+                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc']
 # dataset_list = ['GDSS_ego']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159]
-bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130]
+node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, ]
+bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, ]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
-TOKENS_DICT_FEATURED = {}
 TOKENS_DICT_FLATTEN = {}
 TOKENS_DICT_SEQ = {}
 TOKENS_BWR = {}

@@ -1,0 +1,12 @@
+python trainer/train_trans_generator_feature.py \
+--order C-M \
+--dataset_name qm9 \
+--max_epochs 1000 \
+--check_sample_every_n_epoch 20 \
+--replicate 0 \
+--max_len 25 \
+--wandb_on online \
+--string_type adj_seq \
+--lr 0.0001 \
+--batch_size 128 \
+--num_samples 10000

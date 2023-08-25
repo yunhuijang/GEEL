@@ -17,6 +17,7 @@ from sklearn.metrics.pairwise import pairwise_kernels
 import json
 
 from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, TOKENS_SPM_DICT
+from data.mol_tokens import TOKENS_DICT_SEQ_MOL, TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL
 from data.data_utils import load_graphs
 from evaluation.evaluation_spectre import eval_acc_grid_graph, eval_acc_planar_graph, eval_acc_sbm_graph
 
@@ -43,8 +44,7 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
 
     return elem_acc, sequence_acc
 
-def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token, vocab_size=200):
-    # TODO: logits와 정답 batched_sequence_data만의 loss (현재) + 개수 맞히는 loss 추가
+def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token=False, vocab_size=200):
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
@@ -58,6 +58,22 @@ def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, str
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]    
+        
+    weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])
+    loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
+                        weight=torch.FloatTensor(weight_vector).to(logits.device))
+    return loss
+
+def compute_sequence_cross_entropy_feature(logits, batched_sequence_data, data_name, string_type):
+    logits = logits[:,:-1]
+    targets = batched_sequence_data[:,1:]
+    weight_vector = [0,0]
+    if string_type in ['adj_list', 'adj_list_diff']:
+        tokens = TOKENS_DICT_MOL[data_name]
+    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
+        tokens = TOKENS_DICT_FLATTEN_MOL[data_name]
+    elif string_type in ['adj_seq', 'adj_seq_rel']:
+        tokens = TOKENS_DICT_SEQ_MOL[data_name]    
         
     weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])
     loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
@@ -355,7 +371,13 @@ def orbit_stats_all(graph_ref_list, graph_pred_list, KERNEL=gaussian):
 ### code adapted from https://github.com/idea-iitd/graphgen/blob/master/metrics/mmd.py
 def compute_nspdk_mmd(samples1, samples2, metric, is_hist=True, n_jobs=None):
     def kernel_compute(X, Y=None, is_hist=True, metric='linear', n_jobs=None):
+        for graph in X:
+            edge_attr = nx.get_edge_attributes(graph, 'edge_attr')
+            nx.set_edge_attributes(graph, edge_attr, 'label')
+            node_attr = nx.get_node_attributes(graph, 'x')
+            nx.set_node_attributes(graph, node_attr, 'label')
         X = vectorize(X, complexity=4, discrete=True)
+        
         if Y is not None:
             Y = vectorize(Y, complexity=4, discrete=True)
         return pairwise_kernels(X, Y, metric='linear', n_jobs=n_jobs)

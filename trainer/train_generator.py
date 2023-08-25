@@ -14,7 +14,7 @@ import networkx as nx
 from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
-#from data.mol_utils import adj_to_graph_mol, mols_to_smiles, check_adj_validity_mol, mols_to_nx, fix_symmetry_mol, canonicalize_smiles
+from data.mol_utils import canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
 from plot import plot_graphs_list
 from data.tokens import untokenize
@@ -54,33 +54,20 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'ego': EgoLargeDataset,
             'community': ComLargeDataset
         }.get(hparams.dataset_name)
-        # if hparams.dataset_name in ['qm9', 'zinc']:
-            
-        #     with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-        #         self.train_smiles = f.readlines()
-        #         self.train_smiles = canonicalize_smiles(self.train_smiles)
-        #     with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-        #         self.test_smiles = f.readlines()
-        #         self.test_smiles = canonicalize_smiles(self.test_smiles)
-        # with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.order}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
-        #     self.test_graphs = pickle.load(f)
-
-
-            # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-            #     self.train_smiles = f.readlines()
-            #     self.train_smiles = canonicalize_smiles(self.train_smiles)
-            # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-            #     self.test_smiles = f.readlines()
-            #     self.test_smiles = canonicalize_smiles(self.test_smiles)
-        # with open(f'{DATA_DIR}/{hparams.dataset_name}' + f'_test_graphs.pkl', 'rb') as f:
-        #     self.test_graphs = pickle.load(f)
-            
+        
         self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
 
         self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                    for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
         self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
         self.num_nodes = get_max_len(hparams.dataset_name)[1]
+        if hparams.dataset_name in ['qm9', 'zinc']:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+                self.train_smiles = f.readlines()
+                self.train_smiles = canonicalize_smiles(self.train_smiles)
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+                self.test_smiles = f.readlines()
+                self.test_smiles = canonicalize_smiles(self.test_smiles)
         
     def setup_model(self, hparams):
         self.model = TransGenerator(

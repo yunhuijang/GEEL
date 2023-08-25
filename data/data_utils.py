@@ -11,6 +11,7 @@ import math
 from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.utils import to_networkx
 from scipy.sparse import lil_matrix, vstack
+import sentencepiece as spm
 
 from data.orderings import ORDER_FUNCS, order_graphs
 
@@ -56,6 +57,24 @@ def adj_list_to_adj(adj_list):
         adj[e][n] = 1
 
     return adj
+
+def featured_adj_list_to_adj(adj_list):
+    '''
+    edge featured adjacency list to weighted adjacency matrix
+    '''
+    if len(adj_list) < 2:
+        num_nodes = len(adj_list)
+        adj = [[0] * num_nodes for _ in range(num_nodes)]
+        return np.array(adj)
+    
+    num_nodes =  max(map(max, adj_list))+1
+    adj = [[0] * num_nodes for _ in range(num_nodes)]
+    
+    for n, e, f in adj_list:
+        adj[n][e] = f
+        adj[e][n] = f
+
+    return np.array(adj)
 
 def adj_list_diff_to_adj_list(adj_list_diff):
     return [(token[0], token[0]-token[1]) for token in adj_list_diff]
@@ -331,17 +350,23 @@ def load_graphs(data_name, order='C-M'):
     elif data_name == 'community':
         graphs = []
         num_communities = 2
-        
         print('Creating dataset with ', num_communities, ' communities')
         for k in range(500):
             np.random.seed(1234+k)
             c_sizes = np.random.choice(np.arange(30, 81), num_communities)
             graphs.append(n_community(c_sizes, p_inter=0.05))
+    elif data_name in ['qm9', 'zinc']:
+        graphs_list = []
+        for split in ['train', 'val', 'test']:
+            with open(f'resource/{data_name}/{data_name}_graph_{split}.pkl', 'rb') as f:
+                graphs = pickle.load(f)
+                graphs_list.append(graphs)
+        train_graphs, val_graphs, test_graphs = graphs_list
     else: # planar, sbm
         adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
         graphs = [adj_to_graph(adj) for adj in adjs]
         
-    if data_name != 'mnist':
+    if data_name not in  ['mnist', 'qm9', 'zinc']:
         train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, data_name)
     
     graph_list = []
@@ -349,14 +374,16 @@ def load_graphs(data_name, order='C-M'):
         num_rep = 1
         # order graphs
         order_func = ORDER_FUNCS[order]
-        total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
-        new_ordered_graphs = [nx.from_numpy_array(ordered_graph.to_adjacency().numpy()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
-        # graph_attributes = [ordered_graph.graph.graph for ordered_graph in total_ordered_graphs]
-        # node_attributes = 
-        # for new_ordered_graph in new_ordered_graphs:
-        # TODO: data (for featured graph)
+        
         if data_name == 'mnist':
-            graphs_new = [to_networkx(ordered_graph.to_data()) for ordered_graph in total_ordered_graphs]
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
+            new_ordered_graphs = [to_networkx(ordered_graph.to_mnist_data()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+        elif data_name in ['qm9', 'zinc']:
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
+            new_ordered_graphs = [to_networkx(ordered_graph.to_mol_data(), node_attrs=['x'], edge_attrs=['edge_attr'], to_undirected=True) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+        else:
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=False)
+            new_ordered_graphs = [nx.from_numpy_array(ordered_graph.to_adjacency().numpy()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
         graph_list.append(new_ordered_graphs)
     
     return graph_list
@@ -435,7 +462,7 @@ def check_adj_list_validity(adj_list):
     else:
         return True
 
-def seq_to_adj(seq):
+def seq_to_adj_list(seq):
     adj_list = []
     cur_node_num = 0
     for element in seq:
@@ -444,6 +471,11 @@ def seq_to_adj(seq):
         else:
             cur_node_num += 1
             continue
+    return adj_list
+
+
+def seq_to_adj(seq):
+    adj_list = seq_to_adj_list(seq)
     if check_adj_list_validity(adj_list):
         return torch.tensor(adj_list_to_adj(adj_list))
     else:
@@ -580,9 +612,11 @@ def train_data_to_string(data_name='GDSS_com', string_type='adj_seq_rel', order=
         
     elif string_type == 'adj_flatten_sym':
         strings = [map_string_flat_sym(adj) for adj in adjs]
-
+    print(max([len(string) for string in strings]))
     with open(f'./samples/string/{data_name}/{string_type}.txt', 'w') as f :
-        for smiles in strings:
-            f.write("%s\n" %smiles)
+        for string in strings:
+            f.write("%s\n" %string)
     
-    
+def generate_vocabulary(dataset_name, string_type, vocab_size):
+    train_data_to_string(dataset_name, string_type)
+    spm.SentencePieceTrainer.Train(f"--input=samples/string/{dataset_name}/{string_type}.txt --model_prefix=resource/tokenizer/{dataset_name}/{string_type}_{vocab_size} --vocab_size={vocab_size} --model_type=bpe --character_coverage=1.0 --max_sentence_length=160000 --input_sentence_size=10000000")
