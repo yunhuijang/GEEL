@@ -13,4 +13,5 @@ resource/raw/
 *.csv
 *.sh
 *.txt
-*.txt
+*.out
+*.pkl
