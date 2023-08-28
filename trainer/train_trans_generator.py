@@ -119,6 +119,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--is_token", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=400)
         
+        parser.add_argument("--run_id", type=str)
 
         return parser
 
@@ -130,9 +131,10 @@ if __name__ == "__main__":
     hparams = parser.parse_args()
     
     wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
-                               project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
+                               project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
+                               version=hparams.run_id, resume="must")
     
-    wandb.config.update(hparams)
+    wandb.config.update(hparams, allow_val_change=True)
     
 
     model = TransGeneratorLightningModule(hparams)

@@ -11,6 +11,8 @@ import torch
 import time
 from moses.metrics.metrics import get_all_metrics
 
+os.environ["WANDB__SERVICE_WAIT"] = "300"
+
 from evaluation.evaluation import compute_sequence_cross_entropy, compute_sequence_cross_entropy_feature, eval_graph_list
 from model.trans_generator_feature import TransGeneratorFeature
 from model.trans_generator import TransGenerator
@@ -178,7 +180,7 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="qm9")
+        parser.add_argument("--dataset_name", type=str, default="zinc")
         parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 

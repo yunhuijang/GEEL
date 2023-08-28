@@ -90,7 +90,18 @@ for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm']:
             tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
-        
+
+dataset = 'lobster'    
+string_type = 'adj_flatten'
+vocab_size = 200
+key = f'{dataset}_{string_type}_{vocab_size}'
+TOKENS_SPM_DICT[key] = {}
+sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
+TOKENS_SPM_DICT[key]['sp'] = sp
+tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+TOKENS_SPM_DICT[key]['tokens'] = tokens_spm    
+      
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
 

@@ -29,7 +29,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.setup_datasets(hparams)
         self.setup_model(hparams)
         self.ts = strftime('%b%d-%H:%M:%S', gmtime())
-        wandb.config['ts'] = self.ts
+        # wandb.config['ts'] = self.ts
         
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
@@ -123,8 +123,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             wandb.log({'ratio': len(adjs) / len(adj_lists)})
             
             sampled_graphs = [adj_to_graph(adj) for adj in adjs]
-            save_graph_list(self.hparams.dataset_name, self.ts, sampled_graphs)
-            plot_dir = f'{self.hparams.dataset_name}/{self.ts}'
+            save_graph_list(self.hparams.dataset_name, wandb.run.id, sampled_graphs)
+            plot_dir = f'{self.hparams.dataset_name}/{wandb.run.id}'
             plot_graphs_list(sampled_graphs, save_dir=plot_dir)
             wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
 
