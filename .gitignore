@@ -11,3 +11,6 @@ resource/raw/
 *.vocab
 *.model
 *.csv
+*.sh
+*.txt
+*.txt
