@@ -476,6 +476,7 @@ def seq_to_adj_list(seq):
 def seq_rel_to_adj_list(seq_rel):
     adj_list = []
     cur_node_num = 0
+    tar_node = 1
     for element in seq_rel:
         if element != 0:
             tar_node -= element
@@ -566,7 +567,7 @@ def unflatten_forward(band_flat_A: torch.Tensor) -> torch.Tensor:
 
 def map_string_adj_seq_rel(adj_list):
     string = "0"
-    prev_src_node = 0
+    prev_src_node = 1
     adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
     cur_tar_node = adj_list[0][1]
     for src_node, tar_node in adj_list:

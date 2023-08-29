@@ -161,7 +161,6 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
             tokens.append(diff)
             prev_src_node = src_node
     elif string_type == 'adj_seq_rel':
-        tokens.append(0)
         prev_src_node = 0
         adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
         cur_tar_node = adj_list[0][1]
@@ -171,7 +170,8 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
                 diff = src_node - tar_node
             else:
                 diff = cur_tar_node - tar_node
-            tokens.append(diff)
+            if diff != 0:
+                tokens.append(diff)
             prev_src_node = src_node
             cur_tar_node = tar_node
     elif string_type == 'bwr':
