@@ -15,12 +15,13 @@ from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKE
 from data.mol_tokens import TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL, TOKENS_DICT_SEQ_MOL, token_to_id_mol, id_to_token_mol, PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, NODE_TOKENS_DICT
 from data.tokens import id_to_token
 from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
+from trans_generator import TokenEmbedding
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
-class TokenEmbedding(nn.Module):
+class TokenEmbeddingFeature(nn.Module):
     # TODO: token embedding eimension
     def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
-        super(TokenEmbedding, self).__init__()
+        super(TokenEmbeddingFeature, self).__init__()
         # self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)
         self.num_nodes = num_nodes
         self.bw = bw
@@ -36,16 +37,12 @@ class TokenEmbedding(nn.Module):
 
         self.string_type = string_type
         if self.string_type == 'adj_list':
-            # self.tokens = TOKENS_DICT[self.data_name]
             self.mol_tokens = TOKENS_DICT_MOL[self.data_name]
         elif self.string_type == 'adj_list_diff':
-            # self.tokens = TOKENS_DICT_DIFF[self.data_name]
             self.mol_tokens = TOKENS_DICT_MOL[self.data_name]
         elif self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
-            # self.tokens = TOKENS_DICT_FLATTEN[self.data_name]
             self.mol_tokens = TOKENS_DICT_FLATTEN_MOL[self.data_name]
         elif self.string_type in ['adj_seq', 'adj_seq_rel']:
-            # self.tokens = TOKENS_DICT_SEQ[self.data_name]
             self.mol_tokens = TOKENS_DICT_SEQ_MOL[self.data_name]
         else:
             assert "No token type", False
@@ -118,7 +115,7 @@ class TransGeneratorFeature(nn.Module):
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
         input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
-        data_name, bw, num_nodes
+        data_name, bw, num_nodes, is_joint_adj
     ):
         super(TransGeneratorFeature, self).__init__()
         self.nhead = nhead
@@ -147,11 +144,13 @@ class TransGeneratorFeature(nn.Module):
         self.max_len = max_len
         self.bw = bw
         self.num_nodes = num_nodes
+        self.is_joint_adj = is_joint_adj
         
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer = TokenEmbedding(len(self.mol_tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
+        self.token_embedding_layer_feature = TokenEmbeddingFeature(len(self.mol_tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #
@@ -169,14 +168,18 @@ class TransGeneratorFeature(nn.Module):
     def forward(self, sequences):
         # for training of qm9 / zinc
         if isinstance(sequences, tuple):
+            adj_sequences = sequences[0]
             sequences = sequences[1]
         
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
         TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
 
-        out = self.token_embedding_layer(sequences)
-   
+        out = self.token_embedding_layer_feature(sequences)
+        if self.is_joint_adj:
+            adj_out = self.token_embedding_layer(adj_sequences)
+            out = adj_out + out
+    
         if self.abs_pos:
             out = self.positional_encoding(out)
         out = self.input_dropout(out)

@@ -62,7 +62,8 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
             abs_pos=hparams.abs_pos,
             data_name=hparams.dataset_name,
             bw=self.bw,
-            num_nodes=self.num_nodes
+            num_nodes=self.num_nodes,
+            is_joint_adj=hparams.is_joint_adj
         )
 
     ### 
@@ -180,7 +181,7 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="zinc")
+        parser.add_argument("--dataset_name", type=str, default="qm9")
         parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -200,7 +201,7 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=99)
-        parser.add_argument("--string_type", type=str, default='adj_seq')
+        parser.add_argument("--string_type", type=str, default='adj_seq_rel')
         
         
         # transformer
@@ -213,6 +214,8 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--abs_pos", action="store_true")
         parser.add_argument("--is_token", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=400)
+        
+        parser.add_argument("--is_joint_adj", action="store_true")
         
 
         return parser
