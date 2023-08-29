@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj
+from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list
 
 
 DATA_DIR = "resource"
@@ -177,23 +177,26 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
                                   if (check_adj_feature_seq_size(adj_list, feature_list)) and (len(adj_list)>0) and (adj_list[0] == 0)]
         valid_adj_seqs = [adj_feature_list[0] for adj_feature_list in valid_adj_feature_seqs]
         valid_feature_seqs = [adj_feature_list[1] for adj_feature_list in valid_adj_feature_seqs]
+        
+        filtered_adj_feature_seqs = [(adj, feature) for adj, feature in zip(valid_adj_seqs, valid_feature_seqs) if (adj[0] == 0) and (len(seq_to_adj(adj)) > 0)]
+        adj_seqs = [adj_feature_list[0] for adj_feature_list in filtered_adj_feature_seqs]
+        feature_seqs = [adj_feature_list[1] for adj_feature_list in filtered_adj_feature_seqs]
         if string_type == 'adj_seq':
-            filtered_adj_feature_seqs = [(adj, feature) for adj, feature in zip(valid_adj_seqs, valid_feature_seqs) if (adj[0] == 0) and (len(seq_to_adj(adj)) > 0)]
-            adj_seqs = [adj_feature_list[0] for adj_feature_list in filtered_adj_feature_seqs]
-            feature_seqs = [adj_feature_list[1] for adj_feature_list in filtered_adj_feature_seqs]
-            adj_lists = [seq_to_adj_list(seq_rel) for seq_rel in adj_seqs if len(seq_to_adj(seq_rel))>0]
+            adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
+        else:
+            adj_lists = [seq_rel_to_adj_list(seq_rel) for seq_rel in adj_seqs if len(seq_rel_to_adj(seq_rel))>0]
             # map node features
-            node_indices = [np.where(np.array(adj_seq)==0)[0] for adj_seq in adj_seqs]
-            xs = [[feature_seq[0]] for feature_seq in feature_seqs]
-            for x, feature_seq, node_index in zip(xs, feature_seqs, node_indices):
-                x.extend([feature_seq[i+1] for i in node_index])
-            # map weighted adjacency matrices
-            edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
-            edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
-            featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
-            weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
-            
-            return weighted_adjs, xs
+        node_indices = [np.where(np.array(adj_seq)==0)[0] for adj_seq in adj_seqs]
+        xs = [[feature_seq[0]] for feature_seq in feature_seqs]
+        for x, feature_seq, node_index in zip(xs, feature_seqs, node_indices):
+            x.extend([feature_seq[i+1] for i in node_index])
+        # map weighted adjacency matrices
+        edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
+        edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
+        featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
+        weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
+        
+        return weighted_adjs, xs
             
 def adj_x_to_graph_mol(weighted_adj, x, is_cuda=False):
     if is_cuda:

@@ -473,6 +473,18 @@ def seq_to_adj_list(seq):
             continue
     return adj_list
 
+def seq_rel_to_adj_list(seq_rel):
+    adj_list = []
+    cur_node_num = 0
+    for element in seq_rel:
+        if element != 0:
+            tar_node -= element
+            adj_list.append((cur_node_num, tar_node))
+        else:
+            cur_node_num += 1
+            tar_node = cur_node_num
+            continue
+    return adj_list
 
 def seq_to_adj(seq):
     adj_list = seq_to_adj_list(seq)
@@ -482,16 +494,7 @@ def seq_to_adj(seq):
         return ''
 
 def seq_rel_to_adj(seq):
-    adj_list = []
-    cur_node_num = 0
-    for element in seq:
-        if element != 0:
-            tar_node -= element
-            adj_list.append((cur_node_num, tar_node))
-        else:
-            cur_node_num += 1
-            tar_node = cur_node_num
-            continue
+    adj_list = seq_rel_to_adj_list(seq)
     if check_adj_list_validity(adj_list):
         return torch.tensor(adj_list_to_adj(adj_list))
     else:
