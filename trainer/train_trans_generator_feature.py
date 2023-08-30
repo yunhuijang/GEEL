@@ -8,21 +8,18 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
 from pytorch_lightning.callbacks import ModelCheckpoint, Timer
-from datetime import date
 import torch
 import time
-from moses.metrics.metrics import get_all_metrics
 
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 
-from evaluation.evaluation import compute_sequence_cross_entropy, compute_sequence_cross_entropy_feature, eval_graph_list, evaluate_molecules
+from evaluation.evaluation import compute_sequence_cross_entropy, compute_sequence_cross_entropy_feature, evaluate_molecules
 from model.trans_generator_feature import TransGeneratorFeature
 from model.trans_generator import TransGenerator
 from trainer.train_generator import BaseGeneratorLightningModule
 from data.tokens import untokenize
 from data.mol_tokens import untokenize_mol
-from data.data_utils import map_samples_to_adjs
-from data.mol_utils import mols_to_smiles, mols_to_nx, map_featured_samples_to_adjs, adj_x_to_graph_mol
+from data.mol_utils import map_featured_samples_to_adjs
 
 from signal import signal, SIGPIPE, SIG_DFL   
 #Ignore SIG_PIPE and don't throw exceptions on it... (http://docs.python.org/library/signal.html)  
@@ -221,7 +218,6 @@ if __name__ == "__main__":
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
         ckpt_path += f'/{file_list[0]}'
         ckpt = torch.load(ckpt_path)
-        model = model.load_from_checkpoint(ckpt_path)
         model.load_state_dict(ckpt['state_dict'])
 
     wandb.config.update(hparams)

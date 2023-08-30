@@ -178,6 +178,8 @@ def check_adj_feature_seq_validity(adj_seq, string_type):
     if string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
         # remove the first node (same as adj_seq / adj_seq_rel)
         adj_seq = adj_seq[1:]
+        if len(adj_seq) == 0:
+            return False
         if adj_seq[0] != 0:
             return False
     if string_type in ['adj_seq_merge', 'adj_seq']:
