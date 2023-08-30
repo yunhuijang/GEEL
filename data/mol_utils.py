@@ -199,11 +199,11 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         valid_adj_feature_seqs = [(adj_list, feature_list) for adj_list, feature_list in zip(samples, samples_feature)
                                   if (check_adj_feature_seq_size(adj_list, feature_list)) and check_adj_feature_seq_validity(adj_list, string_type)]
         adj_seqs = [adj_feature_list[0] for adj_feature_list in valid_adj_feature_seqs]
+        feature_seqs = [adj_feature_list[1] for adj_feature_list in valid_adj_feature_seqs]
     elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
         valid_adj_feature_seqs = [sample for sample in samples if check_adj_feature_seq_validity(get_element_list_from_tuple(sample, 0), string_type)]
         adj_seqs = [get_element_list_from_tuple(adj_feature_list, 0)[1:] for adj_feature_list in valid_adj_feature_seqs]
-        
-    feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
+        feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
         
     if string_type in ['adj_seq', 'adj_seq_merge']:
         adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
