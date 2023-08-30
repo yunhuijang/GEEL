@@ -149,7 +149,8 @@ if __name__ == "__main__":
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
         ckpt_path += f'/{file_list[0]}'
         ckpt = torch.load(ckpt_path)
-        model = model.load_from_checkpoint(ckpt_path)
+        
+        # model = model.load_from_checkpoint(ckpt_path)
         model.load_state_dict(ckpt['state_dict'])
         
     
@@ -157,15 +158,15 @@ if __name__ == "__main__":
 
     
     checkpoint_callback_val = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'val'),
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'val'),
         monitor='val/loss/total',
     )
     checkpoint_callback_train = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'train'),
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'train'),
         monitor='train/loss/total', save_on_train_epoch_end=True
     )
     checkpoint_callback_last = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'last')
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'last')
     )
 
     timer = Timer(duration="14:00:00:00")

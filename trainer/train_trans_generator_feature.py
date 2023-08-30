@@ -1,5 +1,7 @@
 import argparse
 import os
+from os import listdir
+from os.path import isfile, join
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import wandb
@@ -62,8 +64,7 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
             abs_pos=hparams.abs_pos,
             data_name=hparams.dataset_name,
             bw=self.bw,
-            num_nodes=self.num_nodes,
-            is_joint_adj=hparams.is_joint_adj
+            num_nodes=self.num_nodes
         )
 
     ### 
@@ -215,7 +216,8 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--is_token", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=400)
         
-        parser.add_argument("--is_joint_adj", action="store_true")
+        # parser.add_argument("--is_joint_adj", action="store_true")
+        parser.add_argument("--run_id", type=str, default=None)
         
 
         return parser
@@ -226,24 +228,37 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     TransGeneratorFeatureLightningModule.add_args(parser)
     hparams = parser.parse_args()
-    
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+    if hparams.run_id == None:
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
-    
+        model = TransGeneratorFeatureLightningModule(hparams)
+        ckpt_path=None
+    else:
+       # for resume
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+                               project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
+                               version=hparams.run_id, resume="must")
+        model = TransGeneratorFeatureLightningModule(hparams)
+        
+        ckpt_path = f"resource/checkpoint/{hparams.dataset_name}/{hparams.run_id}/last"
+        file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
+        ckpt_path += f'/{file_list[0]}'
+        ckpt = torch.load(ckpt_path)
+        model = model.load_from_checkpoint(ckpt_path)
+        model.load_state_dict(ckpt['state_dict'])
+
     wandb.config.update(hparams)
     
-
-    model = TransGeneratorFeatureLightningModule(hparams)
     checkpoint_callback_val = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'val'),
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'val'),
         monitor='val/loss/total',
     )
     checkpoint_callback_train = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'train'),
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'train'),
         monitor='train/loss/total', save_on_train_epoch_end=True
     )
     checkpoint_callback_last = ModelCheckpoint(
-        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, date.today().isoformat(), wandb.run.id, 'last')
+        dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'last')
     )
     timer = Timer(duration="14:00:00:00")
     trainer = pl.Trainer(
@@ -253,7 +268,8 @@ if __name__ == "__main__":
         max_epochs=hparams.max_epochs,
         gradient_clip_val=hparams.gradient_clip_val,
         callbacks=[checkpoint_callback_last, checkpoint_callback_val, checkpoint_callback_train, timer],
-        logger=wandb_logger
+        logger=wandb_logger,
+        resume_from_checkpoint=ckpt_path
     )
-    trainer.fit(model)
+    trainer.fit(model, ckpt_path=ckpt_path)
     wandb.log({"train_time": round(timer.time_elapsed("train"),3)})    
