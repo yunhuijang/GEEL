@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym
 from data.orderings import bw_from_adj
+from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL
 
 
 PAD_TOKEN = "[pad]"
@@ -209,3 +210,20 @@ def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
         return "", org_tokens
     
     return tokens, org_tokens
+
+def map_tokens(data_name, string_type, vocab_size, is_token=False):
+    if is_token:
+        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
+    elif string_type == 'adj_list':
+        tokens = TOKENS_DICT[data_name]
+    elif string_type == 'adj_list_diff':
+        tokens = TOKENS_DICT_DIFF[data_name]
+    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
+        tokens = TOKENS_DICT_FLATTEN[data_name]
+    elif string_type in ['adj_seq', 'adj_seq_rel']:
+        tokens = TOKENS_DICT_SEQ[data_name]
+    elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+        tokens = TOKENS_DICT_SEQ_MERGE_MOL[data_name]
+    else:
+        assert False, "No token type"
+    return tokens

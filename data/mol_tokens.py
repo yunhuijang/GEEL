@@ -16,9 +16,15 @@ UNK_TOKEN = "<unk>"
 
 standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
+dataset_list = ['qm9', 'zinc']
+# maximum number of nodes of each dataset (train, test, val)
+node_num_list = {'qm9': 9, 'zinc': 38}
+bw_list = {'qm9': 5, 'zinc': 10}
+
 TOKENS_DICT_MOL = {}
 TOKENS_DICT_FLATTEN_MOL = {}
 TOKENS_DICT_SEQ_MOL = {}
+TOKENS_DICT_SEQ_MERGE_MOL = {}
 
 NODE_TOKENS_DICT = {'qm9': ['F', 'O', 'N', 'C'], 'zinc': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S']}
 bond_tokens = [5,6,7,8]
@@ -44,6 +50,16 @@ for dataset in ['qm9', 'zinc']:
     # element of adjacency matrix 0
     tokens_flat.append(0)
     TOKENS_DICT_FLATTEN_MOL[dataset] = tokens_flat
+    
+    tokens_seq_merge = standard_tokens.copy()
+    node_types = [NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset]]
+    edge_types = BOND_TYPE_DICT.values()
+    seq_tokens = np.arange(1, bw_list[dataset]+1)
+    node_tokens = [(0, node_type) for node_type in node_types]
+    edge_tokens = [(seq_token, edge_type) for seq_token, edge_type in product(seq_tokens, edge_types)]
+    tokens_seq_merge.extend(node_tokens)
+    tokens_seq_merge.extend(edge_tokens)
+    TOKENS_DICT_SEQ_MERGE_MOL[dataset] = tokens_seq_merge
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
@@ -51,6 +67,7 @@ def token_list_to_dict(tokens):
 TOKENS_KEY_DICT_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_MOL.items()}
 TOKENS_KEY_DICT_FLATTEN_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_FLATTEN_MOL.items()}
 TOKENS_KEY_DICT_SEQ_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MOL.items()}
+TOKENS_KEY_DICT_SEQ_MERGE_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MERGE_MOL.items()}
 
 def token_to_id_mol(data_name, string_type):
     if string_type == ['adj_list', 'adj_list_diff']:
@@ -59,6 +76,8 @@ def token_to_id_mol(data_name, string_type):
         return TOKENS_KEY_DICT_FLATTEN_MOL[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         return TOKENS_KEY_DICT_SEQ_MOL[data_name]
+    elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+        return TOKENS_KEY_DICT_SEQ_MERGE_MOL[data_name]
 
 def id_to_token_mol(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
@@ -86,7 +105,32 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
     elif string_type == 'bwr':
         bw = bw_from_adj(adj.toarray())
         tokens.extend(torch.flatten(flatten_forward(torch.tensor(adj.todense()), bw)).tolist())
-        
+    elif string_type == 'adj_seq_merge':
+        # TODO: Need test
+        tokens.append((0, node_attr[0]))
+        prev_src_node = 0
+        for src_node, tar_node in adj_list:
+            if prev_src_node != src_node:
+                tokens.append((0, node_attr[src_node]))
+            diff = src_node - tar_node
+            tokens.append((diff, edge_attr[(tar_node, src_node)]))
+            prev_src_node = src_node
+    elif string_type == 'adj_seq_rel_merge':
+        # TODO: Need test
+        prev_src_node = 0
+        adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
+        cur_tar_node = adj_list[0][1]
+        tokens.append((0, node_attr[0]))
+        for src_node, tar_node in adj_list:
+            if prev_src_node != src_node:
+                tokens.append((0, node_attr[src_node]))
+                diff = src_node - tar_node
+            else:
+                diff = cur_tar_node - tar_node
+            if diff != 0:
+                tokens.append((diff, edge_attr[(tar_node, src_node)]))
+            prev_src_node = src_node
+            cur_tar_node = tar_node
     tokens.append("[eos]")
 
     return [TOKEN2ID[token] for token in tokens]
@@ -101,6 +145,8 @@ def untokenize_mol(sequence, data_name, string_type, is_token, vocab_size=200):
         tokens = TOKENS_DICT_FLATTEN_MOL[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ_MOL[data_name]
+    elif string_type in ['adj_seq_rel_merge', 'adj_seq_merge']:
+        tokens = TOKENS_DICT_SEQ_MERGE_MOL[data_name]
         
     ID2TOKEN = id_to_token_mol(tokens)
     tokens = [ID2TOKEN[id_] for id_ in sequence]

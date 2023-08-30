@@ -15,9 +15,11 @@ from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
-from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list
+from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
 from plot import plot_graphs_list
 from data.tokens import untokenize
+from data.mol_tokens import untokenize_mol
+from data.mol_utils import map_featured_samples_to_adjs
 
 DATA_DIR = "resource"
 
@@ -36,7 +38,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.order = hparams.order
         self.is_token = hparams.is_token
         self.vocab_size = hparams.vocab_size
-    
+        self.dataset_name = hparams.dataset_name
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -119,30 +121,34 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         wandb.log({"generation_time": round(generation_time, 3)})
         
         if not self.trainer.sanity_checking:
-            adjs = map_samples_to_adjs(adj_lists, self.string_type, self.is_token)
-            wandb.log({'ratio': len(adjs) / len(adj_lists)})
-            
-            sampled_graphs = [adj_to_graph(adj) for adj in adjs]
-            save_graph_list(self.hparams.dataset_name, wandb.run.id, sampled_graphs)
-            plot_dir = f'{self.hparams.dataset_name}/{wandb.run.id}'
-            plot_graphs_list(sampled_graphs, save_dir=plot_dir)
-            wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
-
-            # GDSS evaluation
-            methods, kernels = load_eval_settings('')
-            if len(sampled_graphs) == 0:
-                mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
+            if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+                weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, None, self.string_type)
+                evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
             else:
-                mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
-                for graph in self.test_graphs:
-                    nx.set_node_attributes(graph, 0, "label")
-                    nx.set_edge_attributes(graph, 1, "label")
-                for graph in sampled_graphs:
-                    nx.set_node_attributes(graph, 0, "label")
-                    nx.set_edge_attributes(graph, 1, "label")
-                scores_nspdk = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=['nspdk'])['nspdk']
-                mmd_results['nspdk'] = scores_nspdk
-            wandb.log(mmd_results)
+                adjs = map_samples_to_adjs(adj_lists, self.string_type, self.is_token)
+                wandb.log({'ratio': len(adjs) / len(adj_lists)})
+                
+                sampled_graphs = [adj_to_graph(adj) for adj in adjs]
+                save_graph_list(self.hparams.dataset_name, wandb.run.id, sampled_graphs)
+                plot_dir = f'{self.hparams.dataset_name}/{wandb.run.id}'
+                plot_graphs_list(sampled_graphs, save_dir=plot_dir)
+                wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
+
+                # GDSS evaluation
+                methods, kernels = load_eval_settings('')
+                if len(sampled_graphs) == 0:
+                    mmd_results = {'degree': np.nan, 'orbit': np.nan, 'cluster': np.nan, 'spectral': np.nan}
+                else:
+                    mmd_results = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=methods, kernels=kernels)
+                    for graph in self.test_graphs:
+                        nx.set_node_attributes(graph, 0, "label")
+                        nx.set_edge_attributes(graph, 1, "label")
+                    for graph in sampled_graphs:
+                        nx.set_node_attributes(graph, 0, "label")
+                        nx.set_edge_attributes(graph, 1, "label")
+                    scores_nspdk = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=['nspdk'])['nspdk']
+                    mmd_results['nspdk'] = scores_nspdk
+                wandb.log(mmd_results)
 
     def sample(self, num_samples):
         '''
@@ -160,9 +166,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
                 
-                
-            strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
-            org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
+            if self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge']:
+                strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
+                org_strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
+            else:
+                strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
+                org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

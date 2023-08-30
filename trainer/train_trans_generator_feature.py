@@ -15,7 +15,7 @@ from moses.metrics.metrics import get_all_metrics
 
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 
-from evaluation.evaluation import compute_sequence_cross_entropy, compute_sequence_cross_entropy_feature, eval_graph_list
+from evaluation.evaluation import compute_sequence_cross_entropy, compute_sequence_cross_entropy_feature, eval_graph_list, evaluate_molecules
 from model.trans_generator_feature import TransGeneratorFeature
 from model.trans_generator import TransGenerator
 from trainer.train_generator import BaseGeneratorLightningModule
@@ -152,32 +152,9 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
         wandb.log({"generation_time": round(generation_time, 3)})
         
         if not self.trainer.sanity_checking:
-
             weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, feature_lists, self.string_type)
-            mols_no_correct = [adj_x_to_graph_mol(weighted_adj, x) for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) > 1]
-            mols_no_correct = [elem for elem in mols_no_correct if elem[0] is not None]
-            mols = [elem[0] for elem in mols_no_correct]
-            no_corrects = [elem[1] for elem in mols_no_correct]
-            num_mols = len(mols)
-            gen_smiles = mols_to_smiles(mols)
-            gen_smiles = [smi for smi in gen_smiles if len(smi)]
-            table = wandb.Table(columns=['SMILES'])
-            for s in gen_smiles:
-                table.add_data(s)
-            wandb.log({'SMILES': table})
-            save_dir = f'{self.hparams.dataset_name}/{self.ts}'
-            scores_nspdk = eval_graph_list(self.test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
-            with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
-                for smiles in gen_smiles:
-                    f.write(f'{smiles}\n')
-            scores = get_all_metrics(gen=gen_smiles, device=self.device, n_jobs=8, test=self.test_smiles, train=self.train_smiles, k=len(gen_smiles))
+            evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
             
-            metrics_dict = scores
-            metrics_dict['unique'] = scores[f'unique@{len(gen_smiles)}']
-            del metrics_dict[f'unique@{len(gen_smiles)}']
-            metrics_dict['NSPDK'] = scores_nspdk
-            metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
-            wandb.log(metrics_dict)
     
     @staticmethod
     def add_args(parser):

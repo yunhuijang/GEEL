@@ -170,33 +170,58 @@ def check_adj_feature_seq_size(adj_list, feature_list):
     else:
         return False
 
+def check_adj_feature_seq_validity(adj_seq, string_type):
+    if len(adj_seq) == 0:
+        return False
+    if adj_seq[0] != 0:
+        return False
+    if string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+        # remove the first node (same as adj_seq / adj_seq_rel)
+        adj_seq = adj_seq[1:]
+        if adj_seq[0] != 0:
+            return False
+    if string_type in ['adj_seq_merge', 'adj_seq']:
+        if len(seq_to_adj(adj_seq)) == 0:
+            return False
+    if string_type in ['adj_seq_rel_merge', 'adj_seq_rel']:
+        if len(seq_rel_to_adj(adj_seq)) == 0:
+            return False
+    return True
+
+def get_element_list_from_tuple(list_of_tuples, elem_num=0):
+    return [tup[elem_num] for tup in list_of_tuples]
+
 def map_featured_samples_to_adjs(samples, samples_feature, string_type):
     # return weighted adjacency matrix (edge features) and node features
     if string_type in ['adj_seq', 'adj_seq_rel']:
         valid_adj_feature_seqs = [(adj_list, feature_list) for adj_list, feature_list in zip(samples, samples_feature)
-                                  if (check_adj_feature_seq_size(adj_list, feature_list)) and (len(adj_list)>0) and (adj_list[0] == 0)]
-        valid_adj_seqs = [adj_feature_list[0] for adj_feature_list in valid_adj_feature_seqs]
-        valid_feature_seqs = [adj_feature_list[1] for adj_feature_list in valid_adj_feature_seqs]
+                                  if (check_adj_feature_seq_size(adj_list, feature_list)) and check_adj_feature_seq_validity(adj_list, string_type)]
+        adj_seqs = [adj_feature_list[0] for adj_feature_list in valid_adj_feature_seqs]
+    elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+        valid_adj_feature_seqs = [sample for sample in samples if check_adj_feature_seq_validity(get_element_list_from_tuple(sample, 0), string_type)]
+        adj_seqs = [get_element_list_from_tuple(adj_feature_list, 0)[1:] for adj_feature_list in valid_adj_feature_seqs]
         
-        filtered_adj_feature_seqs = [(adj, feature) for adj, feature in zip(valid_adj_seqs, valid_feature_seqs) if (adj[0] == 0) and (len(seq_to_adj(adj)) > 0)]
-        adj_seqs = [adj_feature_list[0] for adj_feature_list in filtered_adj_feature_seqs]
-        feature_seqs = [adj_feature_list[1] for adj_feature_list in filtered_adj_feature_seqs]
-        if string_type == 'adj_seq':
-            adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
-        else:
-            adj_lists = [seq_rel_to_adj_list(seq_rel) for seq_rel in adj_seqs if len(seq_rel_to_adj(seq_rel))>0]
-            # map node features
-        node_indices = [np.where(np.array(adj_seq)==0)[0] for adj_seq in adj_seqs]
-        xs = [[feature_seq[0]] for feature_seq in feature_seqs]
-        for x, feature_seq, node_index in zip(xs, feature_seqs, node_indices):
-            x.extend([feature_seq[i+1] for i in node_index])
-        # map weighted adjacency matrices
-        edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
-        edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
-        featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
-        weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
+    feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
         
-        return weighted_adjs, xs
+    if string_type in ['adj_seq', 'adj_seq_merge']:
+        adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
+    elif string_type in ['adj_seq_rel', 'adj_seq_rel_merge']:
+        adj_lists = [seq_rel_to_adj_list(seq_rel) for seq_rel in adj_seqs if len(seq_rel_to_adj(seq_rel))>0]
+    # map node features
+    node_indices = [np.where(np.array(adj_seq)==0)[0] for adj_seq in adj_seqs]
+    xs = [[feature_seq[0]] for feature_seq in feature_seqs]
+    for x, feature_seq, node_index in zip(xs, feature_seqs, node_indices):
+        x.extend([feature_seq[i+1] for i in node_index])
+    # map weighted adjacency matrices
+    edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
+    edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
+    featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
+    weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
+    
+    final_weighted_adjs = [weighted_adj for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
+    final_xs = [x for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
+
+    return final_weighted_adjs, final_xs
             
 def adj_x_to_graph_mol(weighted_adj, x, is_cuda=False):
     if is_cuda:

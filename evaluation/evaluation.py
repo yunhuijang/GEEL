@@ -15,10 +15,13 @@ import subprocess as sp
 from eden.graph import vectorize
 from sklearn.metrics.pairwise import pairwise_kernels
 import json
+import wandb
+from moses.metrics.metrics import get_all_metrics
 
-from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, TOKENS_SPM_DICT
+from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, TOKENS_SPM_DICT, map_tokens
 from data.mol_tokens import TOKENS_DICT_SEQ_MOL, TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL
 from data.data_utils import load_graphs
+from data.mol_utils import mols_to_smiles, mols_to_nx, map_featured_samples_to_adjs, adj_x_to_graph_mol
 from evaluation.evaluation_spectre import eval_acc_grid_graph, eval_acc_planar_graph, eval_acc_sbm_graph
 
 def save_graph_list(log_folder_name, exp_name, gen_graph_list):
@@ -48,17 +51,7 @@ def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, str
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
-    if is_token:
-        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
-    elif string_type == 'adj_list':
-        tokens = TOKENS_DICT[data_name]
-    elif string_type == 'adj_list_diff':
-        tokens = TOKENS_DICT_DIFF[data_name]
-    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
-        tokens = TOKENS_DICT_FLATTEN[data_name]
-    elif string_type in ['adj_seq', 'adj_seq_rel']:
-        tokens = TOKENS_DICT_SEQ[data_name]    
-        
+    tokens = map_tokens(data_name, string_type, vocab_size, is_token)        
     weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])
     loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
                         weight=torch.FloatTensor(weight_vector).to(logits.device))
@@ -450,3 +443,29 @@ def check_generated_samples(dataset_name='GDSS_com', string_type='adj_seq_rel', 
     elif dataset_name == 'sbm':
         results['validity'] = eval_acc_sbm_graph(sampled_graphs)
     print(results)
+    
+def evaluate_molecules(weighted_adjs, xs, data_name, test_graphs, device, test_smiles, train_smiles):
+    mols_no_correct = [adj_x_to_graph_mol(weighted_adj, x) for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) > 1]
+    mols_no_correct = [elem for elem in mols_no_correct if elem[0] is not None]
+    mols = [elem[0] for elem in mols_no_correct]
+    no_corrects = [elem[1] for elem in mols_no_correct]
+    num_mols = len(mols)
+    gen_smiles = mols_to_smiles(mols)
+    gen_smiles = [smi for smi in gen_smiles if len(smi)]
+    table = wandb.Table(columns=['SMILES'])
+    for s in gen_smiles:
+        table.add_data(s)
+    wandb.log({'SMILES': table})
+    save_dir = f'{data_name}/{wandb.run.id}'
+    scores_nspdk = eval_graph_list(test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
+    with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
+        for smiles in gen_smiles:
+            f.write(f'{smiles}\n')
+    scores = get_all_metrics(gen=gen_smiles, device=device, n_jobs=8, test=test_smiles, train=train_smiles, k=len(gen_smiles))
+    
+    metrics_dict = scores
+    metrics_dict['unique'] = scores[f'unique@{len(gen_smiles)}']
+    del metrics_dict[f'unique@{len(gen_smiles)}']
+    metrics_dict['NSPDK'] = scores_nspdk
+    metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
+    wandb.log(metrics_dict)

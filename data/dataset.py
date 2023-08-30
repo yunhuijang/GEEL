@@ -65,8 +65,11 @@ class QM9Dataset(EgoDataset):
         
     # for node, edge features
     def __getitem__(self, idx: int):
+        if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+            return torch.LongTensor(tokenize_mol(self.adjs[idx], self.adj_list[idx], nx.get_node_attributes(self.graphs[idx], 'x'), nx.get_edge_attributes(self.graphs[idx], 'edge_attr') , self.data_name, self.string_type))
+        else:
         # return tokenize adj, tokenize_feature
-        return (torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type, self.is_token, self.vocab_size)), 
+            return (torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type, self.is_token, self.vocab_size)), 
                 torch.LongTensor(tokenize_mol(self.adjs[idx], self.adj_list[idx], nx.get_node_attributes(self.graphs[idx], 'x'), nx.get_edge_attributes(self.graphs[idx], 'edge_attr') , self.data_name, self.string_type)))
     
 class ZINCDataset(QM9Dataset):

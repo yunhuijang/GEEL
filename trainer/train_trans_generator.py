@@ -89,7 +89,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="ego")
+        parser.add_argument("--dataset_name", type=str, default="qm9")
         parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -109,7 +109,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=99)
-        parser.add_argument("--string_type", type=str, default='adj_list')
+        parser.add_argument("--string_type", type=str, default='adj_seq_merge')
         
         
         # transformer
@@ -149,8 +149,6 @@ if __name__ == "__main__":
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
         ckpt_path += f'/{file_list[0]}'
         ckpt = torch.load(ckpt_path)
-        
-        # model = model.load_from_checkpoint(ckpt_path)
         model.load_state_dict(ckpt['state_dict'])
         
     
