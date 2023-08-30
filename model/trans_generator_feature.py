@@ -113,7 +113,7 @@ class TransGeneratorFeature(nn.Module):
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
         input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
-        data_name, bw, num_nodes, is_joint_adj
+        data_name, bw, num_nodes
     ):
         super(TransGeneratorFeature, self).__init__()
         self.nhead = nhead
@@ -142,7 +142,6 @@ class TransGeneratorFeature(nn.Module):
         self.max_len = max_len
         self.bw = bw
         self.num_nodes = num_nodes
-        self.is_joint_adj = is_joint_adj
         
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
@@ -174,10 +173,10 @@ class TransGeneratorFeature(nn.Module):
         TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
 
         out = self.token_embedding_layer_feature(sequences)
-        if self.is_joint_adj:
-            adj_out = self.token_embedding_layer(adj_sequences)
-            adj_out = F.pad(input=adj_out, pad=(0, 0, 0, 1, 0, 0), value=0, mode='constant')
-            out = adj_out + out
+        # if self.is_joint_adj:
+        #     adj_out = self.token_embedding_layer(adj_sequences)
+        #     adj_out = F.pad(input=adj_out, pad=(0, 0, 0, 1, 0, 0), value=0, mode='constant')
+        #     out = adj_out + out
     
         if self.abs_pos:
             out = self.positional_encoding(out)
