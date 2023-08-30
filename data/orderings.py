@@ -159,6 +159,7 @@ def order_graphs(
             # seed = i * (j + 1) + j
             random.seed(seed)
             np.random.seed(seed)
+            graph = graph.copy()
             if not is_mol:
                 graph.remove_edges_from(nx.selfloop_edges(graph))
             graph = nx.convert_node_labels_to_integers(graph)
