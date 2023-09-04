@@ -4,7 +4,7 @@ from itertools import product
 import sentencepiece as spm
 from collections import defaultdict
 
-from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym
+from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank
 from data.orderings import bw_from_adj
 from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL
 
@@ -78,12 +78,24 @@ for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'GDSS_grid'
             tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+    
+    
             
 for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm']:
     # for string_type in ['adj_seq', 'adj_seq_rel', 'adj_flatten', 'adj_flatten_sym']:
     for string_type in ['adj_flatten', 'adj_flatten_sym']:
         for vocab_size in [200, 400]:
         # vocab_size = 200
+            key = f'{dataset}_{string_type}_{vocab_size}'
+            TOKENS_SPM_DICT[key] = {}
+            sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
+            TOKENS_SPM_DICT[key]['sp'] = sp
+            tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+            tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+            TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+            
+    for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+        for vocab_size in [70]:
             key = f'{dataset}_{string_type}_{vocab_size}'
             TOKENS_SPM_DICT[key] = {}
             sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
@@ -113,7 +125,7 @@ TOKENS_KEY_DICT_SEQ = {key: token_list_to_dict(value) for key, value in TOKENS_D
 TOKENS_KEY_DICT_SPM = {key: token_list_to_dict(value['tokens']) for key, value in TOKENS_SPM_DICT.items()}
 
 def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
-    if is_token:
+    if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         return TOKENS_KEY_DICT_SPM[f'{data_name}_{string_type}_{vocab_size}']
     elif string_type == 'adj_list':
         return TOKENS_KEY_DICT[data_name]
@@ -130,7 +142,7 @@ def id_to_token(tokens):
 def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=200):
     TOKEN2ID = token_to_id(data_name, string_type, is_token, vocab_size)
     tokens = ["[bos]"]
-    if is_token:
+    if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         key = f'{data_name}_{string_type}_{vocab_size}'
         sp = TOKENS_SPM_DICT[key]['sp']
         if string_type == 'adj_seq':
@@ -141,6 +153,11 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
             string = "".join([str(int(elem)) for elem in torch.flatten(torch.tensor(adj.todense())).tolist()])
         elif string_type == 'adj_flatten_sym':
             string = map_string_flat_sym(adj)
+        elif string_type == 'adj_seq_rel_blank':
+            string = map_string_adj_seq_rel_blank(adj_list)
+        elif string_type == 'adj_seq_blank':
+            string = map_string_adj_seq_blank(adj_list)
+        
         tokens.extend(sp.encode_as_pieces(string))
     elif string_type == 'adj_list':
         tokens.extend(adj_list)
@@ -185,16 +202,7 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
 
 
 def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
-    if is_token:
-        tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
-    elif string_type == 'adj_list':
-        tokens = TOKENS_DICT[data_name]
-    elif string_type == 'adj_list_diff':
-        tokens = TOKENS_DICT_DIFF[data_name]
-    elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
-        tokens = TOKENS_DICT_FLATTEN[data_name]
-    elif string_type in ['adj_seq', 'adj_seq_rel']:
-        tokens = TOKENS_DICT_SEQ[data_name]
+    tokens = map_tokens(data_name, string_type, vocab_size, is_token)
         
     ID2TOKEN = id_to_token(tokens)
     tokens = [ID2TOKEN[id_] for id_ in sequence]
@@ -212,7 +220,7 @@ def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
     return tokens, org_tokens
 
 def map_tokens(data_name, string_type, vocab_size, is_token=False):
-    if is_token:
+    if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
         tokens = TOKENS_DICT[data_name]

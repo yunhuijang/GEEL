@@ -6,27 +6,19 @@ import sentencepiece as spm
 import pickle
 
 from data.orderings import bw_from_adj
-from data.data_utils import unflatten_forward, train_data_to_string, get_max_len
+from data.data_utils import unflatten_forward, train_data_to_string, get_max_len, generate_vocabulary
 from data.mol_utils import canonicalize_smiles, mols_to_nx, smiles_to_mols
+
 
 from torch_geometric.datasets import MNISTSuperpixels
 import moses
 
-# print(get_max_len('zinc'))
-
-# train_data_to_string('qm9', 'adj_seq')
-test_scaffolds = moses.get_dataset('test_scaffolds')
-
-# for data in ['qm9', 'zinc']:
-#     for split in ['train', 'test', 'val']:
+for dataset in ['ego', 'proteins', 'lobster']:
+    for string_type in ['adj_seq_rel_blank', 'adj_seq_blank']:
+        vocab_size = 70
+        generate_vocabulary(dataset, string_type, vocab_size)
         
-
-#         with open(f'resource/{data}/{data}' + f'_smiles_{split}.txt', 'r') as f:
-#             smiles = f.readlines()
-#             smiles = canonicalize_smiles(smiles)
-        
-#         mols = smiles_to_mols(smiles)
-#         graphs = mols_to_nx(mols)
-        
-#         with open(f'resource/{data}/{data}_graph_{split}.pkl', 'wb') as f:
-#             pickle.dump(graphs, f)
+for dataset in ['GDSS_grid']:
+    for string_type in ['adj_seq_rel_blank', 'adj_seq_blank']:
+        vocab_size = 65
+        generate_vocabulary(dataset, string_type, vocab_size)

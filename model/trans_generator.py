@@ -34,7 +34,7 @@ class TokenEmbedding(nn.Module):
         self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
 
         self.string_type = string_type
-        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size)
+        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size-3)
         self.ID2TOKEN = id_to_token(self.tokens)
         self.data_name = data_name
     
@@ -57,7 +57,7 @@ class TokenEmbedding(nn.Module):
         return output_tokens1.to(device), output_tokens2.to(device)
         
     def forward(self, token_sequences):
-        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge']:
+        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
         elif self.string_type in ['adj_list_diff', 'adj_list']:
             ID2TOKEN = id_to_token(self.tokens)

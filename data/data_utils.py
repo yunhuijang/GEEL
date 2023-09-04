@@ -501,15 +501,31 @@ def seq_rel_to_adj(seq):
     else:
         return ''
 
+def blank_seq_to_seq(seq):
+    string = "0"
+    for element in seq:
+        if element == " ":
+            string += "0"
+        else:
+            string += element
+    return [eval(elem) for elem in list(string)]
+
 def map_samples_to_adjs(samples, string_type, is_token):
     
     filtered_samples = [sample for sample in samples if (len(sample) > 0) and ('<unk>' not in sample)]
-    if is_token:
-        filtered_samples = [''.join(sample) for sample in filtered_samples]
-        filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
-        filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]
-        filtered_samples = [sample for sample in filtered_samples if (len(sample) > 0)]
-
+    if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+        if string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+            filtered_samples = [[element.replace('▁', '').replace('<s>', '').replace('</s>', '') for element in sample] for sample in filtered_samples]
+            filtered_samples = [' '.join(sample) for sample in filtered_samples]
+        else:
+            filtered_samples = [''.join(sample) for sample in filtered_samples]
+            filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
+            filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]
+            filtered_samples = [sample for sample in filtered_samples if (len(sample) > 0)]
+    
+    if string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+        filtered_samples = [blank_seq_to_seq(sample) for sample in filtered_samples]
+    
     # map adj_list_diff to adj_list
     if string_type == 'adj_list_diff':
         filtered_samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
@@ -522,10 +538,10 @@ def map_samples_to_adjs(samples, string_type, is_token):
     elif string_type == 'adj_flatten_sym':
         lower_adjs = [fill_lower_diag(adj_flatten) for adj_flatten in filtered_samples if is_triangular(adj_flatten)]
         adjs = [fix_symmetry(torch.tensor(adj)) for adj in lower_adjs]
-    elif string_type == 'adj_seq':
+    elif string_type in ['adj_seq', 'adj_seq_blank']:
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
         adjs = [seq_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_to_adj(seq_rel))>0]
-    elif string_type == 'adj_seq_rel':
+    elif string_type in ['adj_seq_rel', 'adj_seq_rel_blank']:
         filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
         adjs = [seq_rel_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_rel_to_adj(seq_rel))>0]
     elif string_type == 'bwr':
@@ -576,7 +592,26 @@ def map_string_adj_seq_rel(adj_list):
             diff = src_node - tar_node
         else:
             diff = cur_tar_node - tar_node
-        string += str(diff)
+        if diff > 0:
+            string += str(diff)
+        prev_src_node = src_node
+        cur_tar_node = tar_node
+    return string
+
+def map_string_adj_seq_rel_blank(adj_list):
+    string = " "
+    prev_src_node = 1
+    adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
+    cur_tar_node = adj_list[0][1]
+    for src_node, tar_node in adj_list:
+        if prev_src_node != src_node:
+            string += " "
+            diff = src_node - tar_node
+        else:
+            diff = cur_tar_node - tar_node
+        if diff > 0:
+            string += str(diff)
+        
         prev_src_node = src_node
         cur_tar_node = tar_node
     return string
@@ -587,6 +622,17 @@ def map_string_adj_seq(adj_list):
     for src_node, tar_node in adj_list:
         if prev_src_node != src_node:
             string += "0"
+        diff = src_node - tar_node
+        string += str(diff)
+        prev_src_node = src_node
+    return string
+
+def map_string_adj_seq_blank(adj_list):
+    string = " "
+    prev_src_node = 1
+    for src_node, tar_node in adj_list:
+        if prev_src_node != src_node:
+            string += " "
         diff = src_node - tar_node
         string += str(diff)
         prev_src_node = src_node
@@ -616,6 +662,13 @@ def train_data_to_string(data_name='GDSS_com', string_type='adj_seq_rel', order=
         
     elif string_type == 'adj_flatten_sym':
         strings = [map_string_flat_sym(adj) for adj in adjs]
+        
+    elif string_type == 'adj_seq_rel_blank':
+        strings = [map_string_adj_seq_rel_blank(adj_list) for adj_list in adj_lists]
+        
+    elif string_type == 'adj_seq_blank':
+        strings = [map_string_adj_seq_blank(adj_list) for adj_list in adj_lists]
+        
     print(max([len(string) for string in strings]))
     with open(f'./samples/string/{data_name}/{string_type}.txt', 'w') as f :
         for string in strings:
