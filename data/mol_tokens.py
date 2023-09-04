@@ -106,7 +106,6 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
         bw = bw_from_adj(adj.toarray())
         tokens.extend(torch.flatten(flatten_forward(torch.tensor(adj.todense()), bw)).tolist())
     elif string_type == 'adj_seq_merge':
-        # TODO: Need test
         tokens.append((0, node_attr[0]))
         prev_src_node = 0
         for src_node, tar_node in adj_list:

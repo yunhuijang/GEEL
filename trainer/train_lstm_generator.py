@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, Timer
 from datetime import date
 
 from evaluation.evaluation import compute_sequence_cross_entropy
-from model.trans_generator import TransGenerator
+from model.lstm_generator import LSTMGenerator
 from trainer.train_generator import BaseGeneratorLightningModule
 
 from signal import signal, SIGPIPE, SIG_DFL   
@@ -24,29 +24,21 @@ signal(SIGPIPE,SIG_DFL)
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 
 
-class TransGeneratorLightningModule(BaseGeneratorLightningModule):
+class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
 
     def setup_model(self, hparams):
-        self.model = TransGenerator(
-            num_layers=hparams.num_layers,
+        self.model = LSTMGenerator(
             emb_size=hparams.emb_size,
-            nhead=hparams.nhead,
-            dim_feedforward=hparams.dim_feedforward,
-            input_dropout=hparams.input_dropout,
             dropout=hparams.dropout,
-            max_len=hparams.max_len,
             string_type=hparams.string_type,
-            learn_pos=hparams.learn_pos,
-            abs_pos=hparams.abs_pos,
-            data_name=hparams.dataset_name,
-            bw=self.bw,
-            num_nodes=self.num_nodes,
+            dataset=hparams.dataset_name,
+            num_layers=hparams.num_layers,
             is_token=hparams.is_token,
             vocab_size=hparams.vocab_size
         )
-
+        
     ### 
     def train_dataloader(self):
         return DataLoader(
@@ -74,8 +66,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
             num_workers=self.hparams.num_workers,
         )
-
-    ### Main steps
+        
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
@@ -89,7 +80,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="qm9")
+        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
         parser.add_argument("--batch_size", type=int, default=8)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -100,7 +91,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.0002)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=2)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=20)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=100)
@@ -109,17 +100,11 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='string')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=99)
-        parser.add_argument("--string_type", type=str, default='adj_seq_rel_merge')
+        parser.add_argument("--string_type", type=str, default='adj_seq')
         
         
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
-        parser.add_argument("--nhead", type=int, default=8)
-        parser.add_argument("--dim_feedforward", type=int, default=512)
-        parser.add_argument("--input_dropout", type=float, default=0.0)
-        parser.add_argument("--gradient_clip_val", type=float, default=1.0)
-        parser.add_argument("--learn_pos", action="store_true")
-        parser.add_argument("--abs_pos", action="store_true")
         parser.add_argument("--is_token", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=400)
         
@@ -131,19 +116,19 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    TransGeneratorLightningModule.add_args(parser)
+    LSTMGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
     if hparams.run_id == None:
         wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
-        model = TransGeneratorLightningModule(hparams)
+        model = LSTMGeneratorLightningModule(hparams)
         ckpt_path=None
     else:
        # for resume
         wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
                                version=hparams.run_id, resume="must")
-        model = TransGeneratorLightningModule(hparams)
+        model = LSTMGeneratorLightningModule(hparams)
         
         ckpt_path = f"resource/checkpoint/{hparams.dataset_name}/{hparams.run_id}/last"
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
@@ -173,7 +158,6 @@ if __name__ == "__main__":
         accelerator='gpu',
         default_root_dir="/resource/log/",
         max_epochs=hparams.max_epochs,
-        gradient_clip_val=hparams.gradient_clip_val,
         callbacks=[checkpoint_callback_val, checkpoint_callback_train, checkpoint_callback_last, timer],
         logger=wandb_logger,
         resume_from_checkpoint=ckpt_path

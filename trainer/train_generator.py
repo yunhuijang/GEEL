@@ -91,7 +91,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         loss, statistics = 0.0, dict()
         # decoding
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, ignore_index=0)
+        loss = compute_sequence_cross_entropy(logits, batched_data)
         statistics["loss/total"] = loss
         statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
