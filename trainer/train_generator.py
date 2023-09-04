@@ -148,6 +148,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                         nx.set_edge_attributes(graph, 1, "label")
                     scores_nspdk = eval_graph_list(self.test_graphs, sampled_graphs[:len(self.test_graphs)], methods=['nspdk'])['nspdk']
                     mmd_results['nspdk'] = scores_nspdk
+                    mmd_results['avg_mmd'] = (mmd_results['degree'] + mmd_results['orbit'] + mmd_results['cluster'])/3
                 wandb.log(mmd_results)
 
     def sample(self, num_samples):
