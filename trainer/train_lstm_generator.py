@@ -97,7 +97,7 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--max_epochs", type=int, default=100)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
-        parser.add_argument("--group", type=str, default='string')
+        parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='trans')
         parser.add_argument("--max_len", type=int, default=99)
         parser.add_argument("--string_type", type=str, default='adj_seq')
@@ -119,13 +119,13 @@ if __name__ == "__main__":
     LSTMGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
     if hparams.run_id == None:
-        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{hparams.group}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
         model = LSTMGeneratorLightningModule(hparams)
         ckpt_path=None
     else:
        # for resume
-        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{hparams.group}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
                                version=hparams.run_id, resume="must")
         model = LSTMGeneratorLightningModule(hparams)
