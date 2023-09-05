@@ -78,8 +78,6 @@ for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'GDSS_grid'
             tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
-    
-    
             
 for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm']:
     # for string_type in ['adj_seq', 'adj_seq_rel', 'adj_flatten', 'adj_flatten_sym']:
@@ -93,9 +91,21 @@ for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm']:
             tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
-            
+    
+for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'lobster', 'ego', 'proteins']:
     for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         for vocab_size in [70]:
+            key = f'{dataset}_{string_type}_{vocab_size}'
+            TOKENS_SPM_DICT[key] = {}
+            sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
+            TOKENS_SPM_DICT[key]['sp'] = sp
+            tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+            tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+            TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+            
+for dataset in ['planar', 'sbm', 'ego', 'proteins']:
+    for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+        for vocab_size in [1000]:
             key = f'{dataset}_{string_type}_{vocab_size}'
             TOKENS_SPM_DICT[key] = {}
             sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
@@ -113,7 +123,18 @@ sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{strin
 TOKENS_SPM_DICT[key]['sp'] = sp
 tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
 tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
-TOKENS_SPM_DICT[key]['tokens'] = tokens_spm    
+TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+
+dataset = 'GDSS_grid'    
+for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+    vocab_size = 65
+    key = f'{dataset}_{string_type}_{vocab_size}'
+    TOKENS_SPM_DICT[key] = {}
+    sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
+    TOKENS_SPM_DICT[key]['sp'] = sp
+    tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+    tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+    TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
       
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
