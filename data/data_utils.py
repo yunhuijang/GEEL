@@ -502,7 +502,7 @@ def seq_rel_to_adj(seq):
         return ''
 
 def blank_seq_to_seq(seq):
-    string = "0"
+    string = ""
     for element in seq:
         if element == " ":
             string += "0"
@@ -515,9 +515,11 @@ def map_samples_to_adjs(samples, string_type, is_token):
     filtered_samples = [sample for sample in samples if (len(sample) > 0) and ('<unk>' not in sample)]
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         if string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
-            filtered_samples = [[element.replace('▁', '').replace('<s>', '').replace('</s>', '') for element in sample] for sample in filtered_samples]
-            filtered_samples = [' '.join(sample) for sample in filtered_samples]
+            filtered_samples = [[element.replace('▁', ' ').replace('<s>', '').replace('</s>', '') for element in sample] for sample in filtered_samples]
+            filtered_samples = ["".join(sample) for sample in filtered_samples]
+            # filtered_samples = [' '.join(sample) for sample in filtered_samples]
         else:
+            # TODO: fix error in joining
             filtered_samples = [''.join(sample) for sample in filtered_samples]
             filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
             filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]
