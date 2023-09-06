@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank
 from data.orderings import bw_from_adj
-from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL
+from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL
 
 
 PAD_TOKEN = "[pad]"
@@ -28,11 +28,6 @@ TOKENS_DICT_DIFF = {}
 TOKENS_DICT_FLATTEN = {}
 TOKENS_DICT_SEQ = {}
 TOKENS_BWR = {}
-# map adj_list tokens
-for dataset, node_num in zip(dataset_list, node_num_list):
-    tokens = standard_tokens.copy()
-    tokens.extend([(j,i) for i in range(node_num) for j in range(i+1, node_num+1)])
-    TOKENS_DICT[dataset] = tokens
 
 def map_diff(token):
     return (token[0], token[0]-token[1])
@@ -45,6 +40,11 @@ for dataset, tokens in TOKENS_DICT.items():
 
 # map sequential representation tokens
 for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
+    # map adj_list tokens
+    tokens = standard_tokens.copy()
+    tokens.extend([(num, num-b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
+    TOKENS_DICT[dataset] = tokens
+    
     tokens_seq = standard_tokens.copy()
     # 0: node token
     tokens_seq.append(0)
@@ -60,10 +60,6 @@ for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     # for repeat in range(1,bw+1):
     #     tokens_bwr.extend(list(map(list, (product([0,1], repeat=repeat)))))
     # TOKENS_BWR[dataset] = tokens_bwr
-    
-# for dataset, num_nodes, num_node_types, num_edge_types in zip(['qm9', 'zinc'], ,):
-#     tokens_featured = standard_tokens.copy()
-#     tokens_featured 
     
 TOKENS_SPM_DICT = defaultdict()
 
@@ -103,16 +99,16 @@ for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'lobster', 
             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
             
-for dataset in ['planar', 'sbm', 'ego', 'proteins']:
-    for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
-        for vocab_size in [1000]:
-            key = f'{dataset}_{string_type}_{vocab_size}'
-            TOKENS_SPM_DICT[key] = {}
-            sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
-            TOKENS_SPM_DICT[key]['sp'] = sp
-            tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
-            tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
-            TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
+# for dataset in ['planar', 'sbm', 'ego', 'proteins']:
+#     for string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
+#         for vocab_size in [1000]:
+#             key = f'{dataset}_{string_type}_{vocab_size}'
+#             TOKENS_SPM_DICT[key] = {}
+#             sp = spm.SentencePieceProcessor(model_file=f"resource/tokenizer/{dataset}/{string_type}_{vocab_size}.model")
+#             TOKENS_SPM_DICT[key]['sp'] = sp
+#             tokens_spm = [BOS_TOKEN, PAD_TOKEN, EOS_TOKEN]
+#             tokens_spm.extend([sp.IdToPiece(ids) for ids in range(sp.GetPieceSize())])
+#             TOKENS_SPM_DICT[key]['tokens'] = tokens_spm
 
 dataset = 'lobster'    
 string_type = 'adj_flatten'
@@ -244,7 +240,10 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
-        tokens = TOKENS_DICT[data_name]
+        if data_name in ['qm9', 'zinc']:
+            tokens = TOKENS_DICT_MOL[data_name]
+        else:
+            tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':
         tokens = TOKENS_DICT_DIFF[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:

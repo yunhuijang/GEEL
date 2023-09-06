@@ -10,7 +10,8 @@ import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token, TOKENS_SPM_DICT, map_tokens
-from data.mol_tokens import TOKENS_KEY_DICT_SEQ_MERGE_MOL, token_to_id_mol, id_to_token_mol, tokenize_mol, TOKENS_DICT_SEQ_MERGE_MOL
+from data.mol_tokens import TOKENS_KEY_DICT_SEQ_MERGE_MOL, token_to_id_mol, id_to_token_mol, tokenize_mol, TOKENS_DICT_SEQ_MERGE_MOL, NODE_TOKENS_DICT
+from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
@@ -57,18 +58,19 @@ class TokenEmbedding(nn.Module):
         return output_tokens1.to(device), output_tokens2.to(device)
         
     def forward(self, token_sequences):
-        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank']:
-            x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
-        elif self.string_type in ['adj_list_diff', 'adj_list']:
-            ID2TOKEN = id_to_token(self.tokens)
-            t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
-            # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
-            x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
-            if self.string_type == 'adj_list':
-                x2 = self.embedding_numnode(t2) * math.sqrt(self.emb_size)
-            elif self.string_type == 'adj_list_diff':
-                x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
-            x = x1 + x2
+        # TODO: if necessary, fix token embedding for adj_list (same node -> same embedding)
+        # if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank']:
+        x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
+        # elif self.string_type in ['adj_list_diff', 'adj_list']:
+        #     ID2TOKEN = id_to_token(self.tokens)
+        #     t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
+        #     # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
+        #     x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
+        #     if self.string_type == 'adj_list':
+        #         x2 = self.embedding_numnode(t2) * math.sqrt(self.emb_size)
+        #     elif self.string_type == 'adj_list_diff':
+        #         x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
+        #     x = x1 + x2
         # learnable PE
         if self.learn_pos:
             x_batch_size = x.shape[0]
@@ -93,8 +95,8 @@ class AbsolutePositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(1), :].transpose(0,1)
         return x
     
-# model with pure Transformer (no masking in generation)
-class TransGenerator(nn.Module):
+# model with that generates feature + adj list (masking in sequence)
+class TransGeneratorFeatureList(nn.Module):
     '''
     without tree information (only string)
     '''
@@ -104,7 +106,7 @@ class TransGenerator(nn.Module):
         input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
         data_name, bw, num_nodes, is_token, vocab_size
     ):
-        super(TransGenerator, self).__init__()
+        super(TransGeneratorFeatureList, self).__init__()
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
@@ -113,7 +115,6 @@ class TransGenerator(nn.Module):
         self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size, self.is_token)
         self.ID2TOKEN = id_to_token(self.tokens)
         
-        self.TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
         self.learn_pos = learn_pos
         self.abs_pos = abs_pos
         self.max_len = max_len
@@ -145,11 +146,7 @@ class TransGenerator(nn.Module):
         
         batch_size = sequences.size(0)
         sequence_len = sequences.size(1)
-        if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-            TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
-        else:
-            TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
-
+        TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
         out = self.token_embedding_layer(sequences)
    
         if self.abs_pos:
@@ -191,17 +188,57 @@ class TransGenerator(nn.Module):
         '''
         sequential generation
         '''
-        if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-            TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
-        else:
-            TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
+        TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
+        node_type_list = NODE_TOKENS_DICT[self.data_name]
+        node_types = [NODE_TYPE_DICT[node_type] for node_type in node_type_list]
+        node_type_indices = [TOKEN2ID[node_type] for node_type in node_types]
+        edge_types = BOND_TYPE_DICT.values()
+        edge_type_indices = [TOKEN2ID[bond_type] for bond_type in edge_types]
+        edge_indices = [value for key, value in TOKEN2ID.items() if type(key) is tuple]
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
-        for _ in tqdm(range(max_len), "generation"):
+        for index in tqdm(range(max_len), "generation"):
+            # TODO: fix mask
             if ended.all():
                 break
+            current_tokens = sequences[:, index]
+            is_node_type = sum(current_tokens==i for i in node_type_indices).bool()
+            is_edge_type = sum(current_tokens==i for i in edge_type_indices).bool()
+            is_edge = sum(current_tokens==i for i in edge_indices).bool()
+                
             logits = self(sequences)
-            preds = Categorical(logits=logits[:, -1]).sample()
+            
+            current_logits = logits[:, -1].clone().detach()
+            
+            # leave only node types
+            node_type_logits = torch.full(logits[:, -1].shape, float("-inf"), device=logits.device)
+            node_type_logits[:, node_type_indices] = current_logits[:, node_type_indices]
+            
+            
+            # leave only edge types
+            edge_type_logits = torch.full(logits[:, -1].shape, float("-inf"), device=logits.device)
+            edge_type_logits[:, edge_type_indices] = current_logits[:, edge_type_indices]
+            
+            # leave only edges
+            edge_logits = torch.full(logits[:, -1].shape, float("-inf"), device=logits.device)
+            edge_logits[:, edge_indices] = current_logits[:, edge_indices]
+            
+            # node type + edge: after edge type
+            node_type_edge_logits = node_type_logits.clone()
+            node_type_edge_logits[:, edge_indices] = current_logits[:, edge_indices]
+            node_type_edge_logits[:, TOKEN2ID[EOS_TOKEN]] = current_logits[:, TOKEN2ID[EOS_TOKEN]]
+            
+            if index in [0, 1]:
+                target_logits = node_type_logits
+            else:
+                target_logits = torch.where(is_node_type, edge_logits.T, node_type_logits.T).T
+                target_logits = torch.where(is_edge, edge_type_logits.T, target_logits.T).T
+                target_logits = torch.where(is_edge_type, node_type_edge_logits.T, target_logits.T).T
+            
+            # TODO: fix masked_logits
+            # masked_logits = torch.where(mask, node_type_logits.T, edge_type_logits.T).T
+            
+            preds = Categorical(logits=target_logits).sample()
             preds[ended] = TOKEN2ID[PAD_TOKEN]
             sequences = torch.cat([sequences, preds.unsqueeze(1)], dim=1)
 

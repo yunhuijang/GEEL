@@ -104,7 +104,7 @@ class AbsolutePositionalEncoding(nn.Module):
         x = x + self.pe[:x.size(1), :].transpose(0,1)
         return x
     
-
+# model that generates node and edge feature sequences (masking based on adj sequence)
 class TransGeneratorFeature(nn.Module):
     '''
     without tree information (only string)

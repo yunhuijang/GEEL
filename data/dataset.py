@@ -65,7 +65,7 @@ class QM9Dataset(EgoDataset):
         
     # for node, edge features
     def __getitem__(self, idx: int):
-        if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+        if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge', 'adj_list', 'adj_list_diff']:
             return torch.LongTensor(tokenize_mol(self.adjs[idx], self.adj_list[idx], nx.get_node_attributes(self.graphs[idx], 'x'), nx.get_edge_attributes(self.graphs[idx], 'edge_attr') , self.data_name, self.string_type))
         else:
         # return tokenize adj, tokenize_feature

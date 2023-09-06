@@ -18,8 +18,8 @@ standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
 dataset_list = ['qm9', 'zinc']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = {'qm9': 9, 'zinc': 38}
-bw_list = {'qm9': 5, 'zinc': 10}
+node_num_dict = {'qm9': 9, 'zinc': 38}
+bw_dict = {'qm9': 5, 'zinc': 10}
 
 TOKENS_DICT_MOL = {}
 TOKENS_DICT_FLATTEN_MOL = {}
@@ -34,10 +34,14 @@ BOND_TYPE_DICT = {1: 5, 2: 6, 3: 7, 1.5: 8}
 TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}
 
 for dataset in ['qm9', 'zinc']:
-    tokens = standard_tokens.copy()
-    tokens.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
-    tokens.extend([(src_bond, tar_bond) for src_bond, tar_bond in product(bond_tokens, bond_tokens)])
-    TOKENS_DICT_MOL[dataset] = tokens
+    
+    bw = bw_dict[dataset]
+    node_num = node_num_dict[dataset]
+    
+    # tokens = standard_tokens.copy()
+    # tokens.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens.extend([(src_bond, tar_bond) for src_bond, tar_bond in product(bond_tokens, bond_tokens)])
+    # TOKENS_DICT_MOL[dataset] = tokens
     
     tokens_seq = standard_tokens.copy()
     tokens_seq.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
@@ -54,12 +58,19 @@ for dataset in ['qm9', 'zinc']:
     tokens_seq_merge = standard_tokens.copy()
     node_types = [NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset]]
     edge_types = BOND_TYPE_DICT.values()
-    seq_tokens = np.arange(1, bw_list[dataset]+1)
+    seq_tokens = np.arange(1, bw_dict[dataset]+1)
     node_tokens = [(0, node_type) for node_type in node_types]
     edge_tokens = [(seq_token, edge_type) for seq_token, edge_type in product(seq_tokens, edge_types)]
     tokens_seq_merge.extend(node_tokens)
     tokens_seq_merge.extend(edge_tokens)
     TOKENS_DICT_SEQ_MERGE_MOL[dataset] = tokens_seq_merge
+    
+    tokens_list_node_edge = standard_tokens.copy()
+    tokens_list_node_edge.extend([(num, num-b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
+    tokens_list_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_node_edge.extend(bond_tokens)
+    TOKENS_DICT_MOL[dataset] = tokens_list_node_edge
+    
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
@@ -70,7 +81,7 @@ TOKENS_KEY_DICT_SEQ_MOL = {key: token_list_to_dict(value) for key, value in TOKE
 TOKENS_KEY_DICT_SEQ_MERGE_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MERGE_MOL.items()}
 
 def token_to_id_mol(data_name, string_type):
-    if string_type == ['adj_list', 'adj_list_diff']:
+    if string_type in ['adj_list', 'adj_list_diff']:
         return TOKENS_KEY_DICT_MOL[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         return TOKENS_KEY_DICT_FLATTEN_MOL[data_name]
@@ -86,7 +97,16 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
     TOKEN2ID = token_to_id_mol(data_name, string_type)
     tokens = ["[bos]"]
     if string_type in ['adj_list', 'adj_list_diff']:
-        tokens.extend(adj_list)
+        edge_attr_reverse = {(key[1], key[0]): value for key, value in edge_attr.items()}
+        tokens.append(node_attr[0])
+        prev_src_node = 0
+        for edge in adj_list:
+            cur_src_node = edge[0]
+            if cur_src_node != prev_src_node:
+                tokens.append(node_attr[cur_src_node])
+            tokens.append(edge)
+            tokens.append(edge_attr_reverse[edge])
+            prev_src_node = cur_src_node
     elif string_type == 'adj_flatten':
         tokens.extend(torch.flatten(torch.tensor(adj.todense())).tolist())
     elif string_type == 'adj_flatten_sym':
@@ -115,7 +135,6 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
             tokens.append((diff, edge_attr[(tar_node, src_node)]))
             prev_src_node = src_node
     elif string_type == 'adj_seq_rel_merge':
-        # TODO: Need test
         prev_src_node = 0
         adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
         cur_tar_node = adj_list[0][1]

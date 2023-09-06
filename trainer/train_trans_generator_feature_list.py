@@ -14,7 +14,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, Timer
 from datetime import date
 
 from evaluation.evaluation import compute_sequence_cross_entropy
-from model.trans_generator import TransGenerator
+from model.trans_generator_feature_list import TransGeneratorFeatureList
 from trainer.train_generator import BaseGeneratorLightningModule
 
 from signal import signal, SIGPIPE, SIG_DFL   
@@ -24,12 +24,12 @@ signal(SIGPIPE,SIG_DFL)
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 
 
-class TransGeneratorLightningModule(BaseGeneratorLightningModule):
+class TransGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
     def __init__(self, hparams):
         super().__init__(hparams)
 
     def setup_model(self, hparams):
-        self.model = TransGenerator(
+        self.model = TransGeneratorFeatureList(
             num_layers=hparams.num_layers,
             emb_size=hparams.emb_size,
             nhead=hparams.nhead,
@@ -131,19 +131,19 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    TransGeneratorLightningModule.add_args(parser)
+    TransGeneratorFeatureListLightningModule.add_args(parser)
     hparams = parser.parse_args()
     if hparams.run_id == None:
         wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
-        model = TransGeneratorLightningModule(hparams)
+        model = TransGeneratorFeatureListLightningModule(hparams)
         ckpt_path=None
     else:
        # for resume
         wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
                                version=hparams.run_id, resume="must")
-        model = TransGeneratorLightningModule(hparams)
+        model = TransGeneratorFeatureListLightningModule(hparams)
         
         ckpt_path = f"resource/checkpoint/{hparams.dataset_name}/{hparams.run_id}/last"
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]

@@ -121,7 +121,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         wandb.log({"generation_time": round(generation_time, 3)})
         
         if not self.trainer.sanity_checking:
-            if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
+            if self.dataset_name in ['qm9', 'zinc']:
+            # self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
                 weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, None, self.string_type)
                 evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
             else:
@@ -167,7 +168,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
                 
-            if self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge']:
+            if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
                 org_strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             else:
