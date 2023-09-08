@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank
 from data.orderings import bw_from_adj
-from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL
+from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL, TOKENS_DICT_DIFF_MOL
 
 
 PAD_TOKEN = "[pad]"
@@ -32,12 +32,6 @@ TOKENS_BWR = {}
 def map_diff(token):
     return (token[0], token[0]-token[1])
 
-for dataset, tokens in TOKENS_DICT.items():
-    # map adj_flatten / adj_flatten_sym tokens
-    tokens_flat = standard_tokens.copy()
-    tokens_flat.extend([0, 1])
-    TOKENS_DICT_FLATTEN[dataset] = tokens_flat
-
 # map sequential representation tokens
 for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     # map adj_list tokens
@@ -60,7 +54,13 @@ for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     # for repeat in range(1,bw+1):
     #     tokens_bwr.extend(list(map(list, (product([0,1], repeat=repeat)))))
     # TOKENS_BWR[dataset] = tokens_bwr
-    
+
+for dataset, tokens in TOKENS_DICT.items():
+    # map adj_flatten / adj_flatten_sym tokens
+    tokens_flat = standard_tokens.copy()
+    tokens_flat.extend([0, 1])
+    TOKENS_DICT_FLATTEN[dataset] = tokens_flat
+
 TOKENS_SPM_DICT = defaultdict()
 
 for dataset in ['GDSS_com', 'GDSS_ego', 'planar', 'GDSS_enz', 'sbm', 'GDSS_grid']:
@@ -245,7 +245,10 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
         else:
             tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':
-        tokens = TOKENS_DICT_DIFF[data_name]
+        if data_name in ['qm9', 'zinc']:
+            tokens = TOKENS_DICT_DIFF_MOL[data_name]
+        else:
+            tokens = TOKENS_DICT_DIFF[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:

@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list
+from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list, adj_list_diff_to_adj_list
 
 
 DATA_DIR = "resource"
@@ -213,6 +213,8 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
     elif string_type in ['adj_list', 'adj_list_diff']:
         adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
         feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
+        if string_type == 'adj_list_diff':
+            adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
         
     if 'adj_seq' in string_type:
         if string_type in ['adj_seq', 'adj_seq_merge']:

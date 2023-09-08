@@ -5,7 +5,7 @@ import sentencepiece as spm
 from collections import defaultdict
 from itertools import product
 
-from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym
+from data.data_utils import flatten_forward
 from data.orderings import bw_from_adj
 
 
@@ -25,6 +25,10 @@ TOKENS_DICT_MOL = {}
 TOKENS_DICT_FLATTEN_MOL = {}
 TOKENS_DICT_SEQ_MOL = {}
 TOKENS_DICT_SEQ_MERGE_MOL = {}
+TOKENS_DICT_DIFF_MOL  = {}
+
+def map_diff(token):
+    return (token[0], token[0]-token[1])
 
 NODE_TOKENS_DICT = {'qm9': ['F', 'O', 'N', 'C'], 'zinc': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S']}
 bond_tokens = [5,6,7,8]
@@ -71,18 +75,28 @@ for dataset in ['qm9', 'zinc']:
     tokens_list_node_edge.extend(bond_tokens)
     TOKENS_DICT_MOL[dataset] = tokens_list_node_edge
     
+    tokens_list_diff_node_edge = standard_tokens.copy()
+    tokens_list_diff_node_edge.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
+    tokens_list_diff_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_diff_node_edge.extend(bond_tokens)
+    TOKENS_DICT_DIFF_MOL[dataset] = tokens_list_diff_node_edge
+    
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
 
 TOKENS_KEY_DICT_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_MOL.items()}
+TOKENS_KEY_DICT_DIFF_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF_MOL.items()}
 TOKENS_KEY_DICT_FLATTEN_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_FLATTEN_MOL.items()}
 TOKENS_KEY_DICT_SEQ_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MOL.items()}
 TOKENS_KEY_DICT_SEQ_MERGE_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MERGE_MOL.items()}
 
+
 def token_to_id_mol(data_name, string_type):
-    if string_type in ['adj_list', 'adj_list_diff']:
+    if string_type in ['adj_list']:
         return TOKENS_KEY_DICT_MOL[data_name]
+    elif string_type == 'adj_list_diff':
+        return TOKENS_KEY_DICT_DIFF_MOL[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         return TOKENS_KEY_DICT_FLATTEN_MOL[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
@@ -104,7 +118,11 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
             cur_src_node = edge[0]
             if cur_src_node != prev_src_node:
                 tokens.append(node_attr[cur_src_node])
-            tokens.append(edge)
+            if string_type == 'adj_list':
+                tokens.append(edge)
+            else:
+                edge_diff = map_diff(edge)
+                tokens.append(edge_diff)
             tokens.append(edge_attr_reverse[edge])
             prev_src_node = cur_src_node
     elif string_type == 'adj_flatten':

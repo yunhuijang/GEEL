@@ -9,8 +9,8 @@ import os
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id, id_to_token, TOKENS_SPM_DICT, map_tokens
-from data.mol_tokens import TOKENS_KEY_DICT_SEQ_MERGE_MOL, token_to_id_mol, id_to_token_mol, tokenize_mol, TOKENS_DICT_SEQ_MERGE_MOL, NODE_TOKENS_DICT
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, id_to_token, map_tokens
+from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT
 from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
@@ -59,18 +59,7 @@ class TokenEmbedding(nn.Module):
         
     def forward(self, token_sequences):
         # TODO: if necessary, fix token embedding for adj_list (same node -> same embedding)
-        # if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank']:
         x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
-        # elif self.string_type in ['adj_list_diff', 'adj_list']:
-        #     ID2TOKEN = id_to_token(self.tokens)
-        #     t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
-        #     # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
-        #     x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
-        #     if self.string_type == 'adj_list':
-        #         x2 = self.embedding_numnode(t2) * math.sqrt(self.emb_size)
-        #     elif self.string_type == 'adj_list_diff':
-        #         x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
-        #     x = x1 + x2
         # learnable PE
         if self.learn_pos:
             x_batch_size = x.shape[0]
