@@ -57,10 +57,10 @@ class TokenEmbedding(nn.Module):
         return output_tokens1.to(device), output_tokens2.to(device)
         
     def forward(self, token_sequences):
-        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank']:
+        ID2TOKEN = id_to_token(self.tokens)
+        if self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr', 'adj_seq', 'adj_seq_rel', 'adj_seq_merge', 'adj_seq_rel_merge', 'adj_seq_blank', 'adj_seq_rel_blank', 'adj_list_diff_ni']:
             x = self.embedding(token_sequences) * math.sqrt(self.emb_size)
         elif self.string_type in ['adj_list_diff', 'adj_list']:
-            ID2TOKEN = id_to_token(self.tokens)
             t1, t2 = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
             # m = max(max(torch.flatten(t1)).item(), max(torch.flatten(t2)).item())
             x1 = self.embedding_numnode(t1) * math.sqrt(self.emb_size)
@@ -69,6 +69,18 @@ class TokenEmbedding(nn.Module):
             elif self.string_type == 'adj_list_diff':
                 x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
             x = x1 + x2
+        # node PE for adj_list_diff_ni
+        if self.string_type == 'adj_list_diff_ni':
+            ni, _ = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
+            ni[ni==2] = -100000
+            ni[ni==1] = 0
+            ni[ni==3] = 0
+            ni[ni==0] = 0
+            ni[ni==4] = 1
+            current_node = ni.cumsum(dim=1)
+            current_node[current_node<0] = 0
+            node_pe = self.embedding_numnode(current_node) * math.sqrt(self.emb_size)
+            x += node_pe
         # learnable PE
         if self.learn_pos:
             x_batch_size = x.shape[0]

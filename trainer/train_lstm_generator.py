@@ -36,7 +36,11 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
             dataset=hparams.dataset_name,
             num_layers=hparams.num_layers,
             is_token=hparams.is_token,
-            vocab_size=hparams.vocab_size
+            vocab_size=hparams.vocab_size,
+            max_len=hparams.max_len,
+            bw=self.bw,
+            num_nodes=self.num_nodes,
+            learn_pos=hparams.learn_pos
         )
         
     ### 
@@ -98,14 +102,15 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='lstm')
-        parser.add_argument("--model", type=str, default='trans')
+        parser.add_argument("--model", type=str, default='lstm')
         parser.add_argument("--max_len", type=int, default=99)
-        parser.add_argument("--string_type", type=str, default='adj_seq')
+        parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
         
         
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
         parser.add_argument("--is_token", action="store_true")
+        parser.add_argument("--learn_pos", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=400)
         
         parser.add_argument("--run_id", type=str, default=None)
@@ -119,13 +124,13 @@ if __name__ == "__main__":
     LSTMGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
     if hparams.run_id == None:
-        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{hparams.group}', 
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
         model = LSTMGeneratorLightningModule(hparams)
         ckpt_path=None
     else:
        # for resume
-        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}-{hparams.group}', 
+        wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}',
                                version=hparams.run_id, resume="must")
         model = LSTMGeneratorLightningModule(hparams)

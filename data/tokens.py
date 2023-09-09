@@ -25,12 +25,16 @@ bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
+TOKENS_DICT_DIFF_NI = {}
 TOKENS_DICT_FLATTEN = {}
 TOKENS_DICT_SEQ = {}
 TOKENS_BWR = {}
 
 def map_diff(token):
     return (token[0], token[0]-token[1])
+
+def map_diff_ni(token):
+    return (token[0], token[1]-token[0])
 
 # map sequential representation tokens
 for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
@@ -54,8 +58,11 @@ for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     # for repeat in range(1,bw+1):
     #     tokens_bwr.extend(list(map(list, (product([0,1], repeat=repeat)))))
     # TOKENS_BWR[dataset] = tokens_bwr
-
-for dataset, tokens in TOKENS_DICT.items():
+    
+    # map token_list_diff_ni tokens (src node: NI (0,1), tar node: tar node)
+    tokens_diff_ni = standard_tokens.copy()
+    tokens_diff_ni.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(0,2)])
+    TOKENS_DICT_DIFF_NI[dataset] = tokens_diff_ni
     # map adj_flatten / adj_flatten_sym tokens
     tokens_flat = standard_tokens.copy()
     tokens_flat.extend([0, 1])
@@ -140,6 +147,7 @@ TOKENS_KEY_DICT_DIFF = {key: token_list_to_dict(value) for key, value in TOKENS_
 TOKENS_KEY_DICT_FLATTEN = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_FLATTEN.items()}
 TOKENS_KEY_DICT_SEQ = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ.items()}
 TOKENS_KEY_DICT_SPM = {key: token_list_to_dict(value['tokens']) for key, value in TOKENS_SPM_DICT.items()}
+TOKENS_KEY_DICT_DIFF_NI = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF_NI.items()}
 
 def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
@@ -152,6 +160,8 @@ def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
         return TOKENS_KEY_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         return TOKENS_KEY_DICT_SEQ[data_name]
+    elif string_type in ['adj_list_diff_ni']:
+        return TOKENS_KEY_DICT_DIFF_NI[data_name]
 
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
@@ -197,7 +207,7 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
             prev_src_node = src_node
     elif string_type == 'adj_seq_rel':
         prev_src_node = 0
-        adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
+        adj_list = sorted(adj_list, key=lambda x: (x[0], -x[1]))
         cur_tar_node = adj_list[0][1]
         for src_node, tar_node in adj_list:
             if prev_src_node != src_node:
@@ -209,6 +219,19 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
                 tokens.append(diff)
             prev_src_node = src_node
             cur_tar_node = tar_node
+    elif string_type == 'adj_list_diff_ni':
+        reverse_adj_list = [(tar, src) for src, tar in adj_list]
+        reverse_adj_list = sorted(reverse_adj_list, key=lambda x: x[0])
+        adj_diff_list = [map_diff_ni(edge) for edge in reverse_adj_list]
+        adj_diff_list = sorted(adj_diff_list, key=lambda x: x[0])
+        prev_src_node = -1
+        for src_node, tar_node in adj_diff_list:
+            if prev_src_node != src_node:
+                final_src_node = 1
+            else:
+                final_src_node = 0
+            tokens.append((final_src_node, tar_node))
+            prev_src_node = src_node
     elif string_type == 'bwr':
         bw = bw_from_adj(adj.toarray())
         tokens.extend(torch.flatten(flatten_forward(torch.tensor(adj.todense()), bw)).tolist())
@@ -255,6 +278,8 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
         tokens = TOKENS_DICT_SEQ[data_name]
     elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
         tokens = TOKENS_DICT_SEQ_MERGE_MOL[data_name]
+    elif string_type == 'adj_list_diff_ni':
+        tokens = TOKENS_DICT_DIFF_NI[data_name]
     else:
         assert False, "No token type"
     return tokens

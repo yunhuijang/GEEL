@@ -79,7 +79,19 @@ def featured_adj_list_to_adj(adj_list):
 def adj_list_diff_to_adj_list(adj_list_diff):
     return [(token[0], token[0]-token[1]) for token in adj_list_diff]
 
-    
+def diff_to_adj_list(adj_list_diff):
+    return [(token[0], token[0]+token[1]) for token in adj_list_diff]
+
+def adj_list_diff_ni_to_adj_list(adj_list_diff_ni):
+    src_node = 0
+    adj_list_diff = [(0, adj_list_diff_ni[0][1])]
+    for ni, tar_node in adj_list_diff_ni[1:]:
+        if ni == 1:
+            src_node += 1
+        adj_list_diff.append((src_node, tar_node))
+    adj_list = diff_to_adj_list(adj_list_diff)
+    return adj_list
+
 def train_val_test_split(
     data: list, data_name='GDSS_com',
     train_size: float = 0.7, val_size: float = 0.1, seed: int = 42,
@@ -359,7 +371,7 @@ def load_graphs(data_name, order='C-M'):
         graphs_list = []
         for split in ['train', 'val', 'test']:
             with open(f'resource/{data_name}/{data_name}_graph_{split}.pkl', 'rb') as f:
-                graphs = pickle.load(f)
+                graphs = pickle.load(f)[:100]
                 graphs_list.append(graphs)
         train_graphs, val_graphs, test_graphs = graphs_list
     else: # planar, sbm
@@ -408,14 +420,18 @@ def get_max_len(data_name):
     graphs_list = load_graphs(data_name)
     max_len_edge = 0
     max_len_node = 0
+    min_len_node = 1000
     for graphs in graphs_list:
         max_edge = max([len(graph.edges) for graph in graphs])
         max_node = max([len(graph.nodes) for graph in graphs])
+        min_node = min([len(graph.nodes) for graph in graphs])
         if max_edge > max_len_edge:
             max_len_edge = max_edge
         if max_node > max_len_node:
             max_len_node = max_node
-    return max_len_edge, max_len_node
+        if min_node < min_len_node:
+            min_len_node = min_node
+    return max_len_edge, max_len_node, min_len_node
 
 def is_square(adj_flatten):
     num = len(adj_flatten)
@@ -531,8 +547,10 @@ def map_samples_to_adjs(samples, string_type, is_token):
     # map adj_list_diff to adj_list
     if string_type == 'adj_list_diff':
         filtered_samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
+    elif string_type == 'adj_list_diff_ni':
+        filtered_samples = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in filtered_samples]
     # map adjacecny matrices from samples
-    if string_type in ['adj_list', 'adj_list_diff']:
+    if string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
         adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples if check_adj_list_validity(adj_list)>0]
     elif string_type == 'adj_flatten':
         adjs = [adj_flatten_to_adj(adj_flatten) for adj_flatten in filtered_samples if is_square(adj_flatten)]

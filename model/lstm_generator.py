@@ -4,22 +4,22 @@ from torch.distributions import Categorical
 import math
 
 from data.tokens import map_tokens, token_to_id, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN
-
+from model.trans_generator import TokenEmbedding
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
-class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size):
-        super(TokenEmbedding, self).__init__()
-        self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.emb_size = emb_size
+# class TokenEmbedding(nn.Module):
+#     def __init__(self, vocab_size, emb_size):
+#         super(TokenEmbedding, self).__init__()
+#         self.embedding = nn.Embedding(vocab_size, emb_size)
+#         self.emb_size = emb_size
 
-    def forward(self, tokens):
-        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+#     def forward(self, tokens):
+#         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
 class LSTMGenerator(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, is_token=False
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False
     ):
         super(LSTMGenerator, self).__init__()
         self.emb_size = emb_size
@@ -29,6 +29,10 @@ class LSTMGenerator(nn.Module):
         self.dataset = dataset
         self.vocab_size = vocab_size
         self.is_token = is_token
+        self.learn_pos = learn_pos
+        self.max_len = max_len
+        self.bw = bw
+        self.num_nodes = num_nodes
         
         self.tokens = map_tokens(self.dataset, self.string_type, self.vocab_size, self.is_token)
 
@@ -36,6 +40,7 @@ class LSTMGenerator(nn.Module):
         self.vocab_size = self.output_size = len(self.tokens)
 
         self.embedding_layer = nn.Embedding(self.vocab_size, self.emb_size)
+        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.learn_pos, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes)
         self.lstm_layer = nn.LSTM(self.emb_size, self.emb_size,  
                                 dropout=self.dropout, batch_first=True, num_layers=self.num_layers)
         self.linear_layer = nn.Linear(self.emb_size, self.output_size)
