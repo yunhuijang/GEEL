@@ -9,7 +9,7 @@ from model.trans_generator import TokenEmbedding
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class SimpleTokenEmbedding(nn.Module):
     def __init__(self, vocab_size, emb_size):
-        super(TokenEmbedding, self).__init__()
+        super(SimpleTokenEmbedding, self).__init__()
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.emb_size = emb_size
 
