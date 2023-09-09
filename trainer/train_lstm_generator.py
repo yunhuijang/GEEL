@@ -40,7 +40,8 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
             max_len=hparams.max_len,
             bw=self.bw,
             num_nodes=self.num_nodes,
-            learn_pos=hparams.learn_pos
+            learn_pos=hparams.learn_pos,
+            is_simple_token=hparams.is_simple_token
         )
         
     ### 
@@ -114,6 +115,7 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--vocab_size", type=int, default=400)
         
         parser.add_argument("--run_id", type=str, default=None)
+        parser.add_argument("--is_simple_token", action="store_true")
 
         return parser
 

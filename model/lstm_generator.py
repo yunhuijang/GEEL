@@ -7,19 +7,19 @@ from data.tokens import map_tokens, token_to_id, PAD_TOKEN, BOS_TOKEN, EOS_TOKEN
 from model.trans_generator import TokenEmbedding
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
-# class TokenEmbedding(nn.Module):
-#     def __init__(self, vocab_size, emb_size):
-#         super(TokenEmbedding, self).__init__()
-#         self.embedding = nn.Embedding(vocab_size, emb_size)
-#         self.emb_size = emb_size
+class SimpleTokenEmbedding(nn.Module):
+    def __init__(self, vocab_size, emb_size):
+        super(TokenEmbedding, self).__init__()
+        self.embedding = nn.Embedding(vocab_size, emb_size)
+        self.emb_size = emb_size
 
-#     def forward(self, tokens):
-#         return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
+    def forward(self, tokens):
+        return self.embedding(tokens.long()) * math.sqrt(self.emb_size)
 
 
 class LSTMGenerator(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False
     ):
         super(LSTMGenerator, self).__init__()
         self.emb_size = emb_size
@@ -33,6 +33,7 @@ class LSTMGenerator(nn.Module):
         self.max_len = max_len
         self.bw = bw
         self.num_nodes = num_nodes
+        self.is_simple_token = is_simple_token
         
         self.tokens = map_tokens(self.dataset, self.string_type, self.vocab_size, self.is_token)
 
@@ -41,6 +42,7 @@ class LSTMGenerator(nn.Module):
 
         self.embedding_layer = nn.Embedding(self.vocab_size, self.emb_size)
         self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.learn_pos, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes)
+        self.simple_token_embedding_layer = SimpleTokenEmbedding(self.vocab_size, self.emb_size)
         self.lstm_layer = nn.LSTM(self.emb_size, self.emb_size,  
                                 dropout=self.dropout, batch_first=True, num_layers=self.num_layers)
         self.linear_layer = nn.Linear(self.emb_size, self.output_size)
@@ -48,7 +50,10 @@ class LSTMGenerator(nn.Module):
 
     def forward(self, sequences):
         batch_size = sequences.size(0)
-        out = self.token_embedding_layer(sequences)
+        if self.is_simple_token:
+            out = self.simple_token_embedding_layer(sequences)    
+        else:
+            out = self.token_embedding_layer(sequences)
         out, hidden = self.lstm_layer(out)
         logits = self.linear_layer(out)
 
