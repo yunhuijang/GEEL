@@ -48,7 +48,7 @@ class LSTMGenerator(nn.Module):
 
     def forward(self, sequences):
         batch_size = sequences.size(0)
-        out = self.embedding_layer(sequences)
+        out = self.token_embedding_layer(sequences)
         out, hidden = self.lstm_layer(out)
         logits = self.linear_layer(out)
 
