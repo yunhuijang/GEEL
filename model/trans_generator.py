@@ -26,9 +26,8 @@ class TokenEmbedding(nn.Module):
         self.vocab_size = vocab_size
         
         self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.embedding_numnode = nn.Embedding(self.num_nodes+4, emb_size)
+        self.embedding_numnode = nn.Embedding(self.num_nodes+5, emb_size)
         self.embedding_diff = nn.Embedding(self.bw+4, emb_size)
-        
         
         # max_len+2: for eos / bos token
         self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
