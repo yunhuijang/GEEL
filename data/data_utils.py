@@ -88,6 +88,8 @@ def adj_list_diff_ni_to_adj_list(adj_list_diff_ni):
     for ni, tar_node in adj_list_diff_ni[1:]:
         if ni == 1:
             src_node += 1
+            if tar_node == 0:
+                continue
         adj_list_diff.append((src_node, tar_node))
     adj_list = diff_to_adj_list(adj_list_diff)
     return adj_list

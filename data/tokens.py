@@ -61,7 +61,7 @@ for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     
     # map token_list_diff_ni tokens (src node: NI (0,1), tar node: tar node)
     tokens_diff_ni = standard_tokens.copy()
-    tokens_diff_ni.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(0,2)])
+    tokens_diff_ni.extend([(num, b) for b in np.arange(0,bw+1) for num in np.arange(0,2)])
     TOKENS_DICT_DIFF_NI[dataset] = tokens_diff_ni
     # map adj_flatten / adj_flatten_sym tokens
     tokens_flat = standard_tokens.copy()
@@ -223,6 +223,10 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
         reverse_adj_list = [(tar, src) for src, tar in adj_list]
         reverse_adj_list = sorted(reverse_adj_list, key=lambda x: x[0])
         adj_diff_list = [map_diff_ni(edge) for edge in reverse_adj_list]
+        src_node_set = set([src for src, tar in adj_diff_list])
+        for node in range(max(src_node_set)+1):
+            if node not in src_node_set:
+                adj_diff_list.append((node, 0))
         adj_diff_list = sorted(adj_diff_list, key=lambda x: x[0])
         prev_src_node = -1
         for src_node, tar_node in adj_diff_list:
