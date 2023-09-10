@@ -26,7 +26,7 @@ class TokenEmbedding(nn.Module):
         self.vocab_size = vocab_size
         
         self.embedding = nn.Embedding(vocab_size, emb_size)
-        self.embedding_numnode = nn.Embedding(self.num_nodes+20, emb_size)
+        self.embedding_numnode = nn.Embedding(self.num_nodes+3, emb_size)
         self.embedding_diff = nn.Embedding(self.bw+4, emb_size)
         
         # max_len+2: for eos / bos token
@@ -78,6 +78,7 @@ class TokenEmbedding(nn.Module):
             ni[ni==4] = 1
             current_node = ni.cumsum(dim=1)
             current_node[current_node<0] = 0
+            current_node[current_node > self.num_nodes+1] = 0
             node_pe = self.embedding_numnode(current_node) * math.sqrt(self.emb_size)
             x += node_pe
         # learnable PE
