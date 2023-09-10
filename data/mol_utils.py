@@ -211,6 +211,7 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         adj_seqs = [get_element_list_from_tuple(adj_feature_list, 0)[1:] for adj_feature_list in valid_adj_feature_seqs]
         feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
     elif string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
+        samples = [sample for sample in samples if len(sample)>0]
         adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
         feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
         if string_type == 'adj_list_diff':
