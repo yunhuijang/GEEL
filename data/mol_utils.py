@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list, adj_list_diff_to_adj_list
+from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
 
 
 DATA_DIR = "resource"
@@ -210,12 +210,13 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         valid_adj_feature_seqs = [sample for sample in samples if check_adj_feature_seq_validity(get_element_list_from_tuple(sample, 0), string_type)]
         adj_seqs = [get_element_list_from_tuple(adj_feature_list, 0)[1:] for adj_feature_list in valid_adj_feature_seqs]
         feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
-    elif string_type in ['adj_list', 'adj_list_diff']:
+    elif string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
         adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
         feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
         if string_type == 'adj_list_diff':
             adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
-        
+        elif string_type == 'adj_list_diff_ni':
+            adj_lists = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in adj_lists]
     if 'adj_seq' in string_type:
         if string_type in ['adj_seq', 'adj_seq_merge']:
             adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
@@ -235,6 +236,10 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         
     featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
     weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
+    if string_type == 'adj_list_diff_ni':
+        for adj in weighted_adjs:
+            np.fill_diagonal(adj, 0)
+        # weighted_adjs = [np.fill_diagonal(adj, 0) for adj in weighted_adjs]
     final_weighted_adjs = [weighted_adj for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
     final_xs = [x for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
 

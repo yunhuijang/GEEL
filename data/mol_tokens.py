@@ -1,9 +1,6 @@
 import torch
 import numpy as np
 from itertools import product
-import sentencepiece as spm
-from collections import defaultdict
-from itertools import product
 
 from data.data_utils import flatten_forward
 from data.orderings import bw_from_adj
@@ -26,9 +23,14 @@ TOKENS_DICT_FLATTEN_MOL = {}
 TOKENS_DICT_SEQ_MOL = {}
 TOKENS_DICT_SEQ_MERGE_MOL = {}
 TOKENS_DICT_DIFF_MOL  = {}
+TOKENS_DICT_DIFF_NI_MOL = {}
 
 def map_diff(token):
     return (token[0], token[0]-token[1])
+
+def map_diff_ni(token):
+    return (token[0], token[1]-token[0])
+
 
 NODE_TOKENS_DICT = {'qm9': ['F', 'O', 'N', 'C'], 'zinc': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S']}
 bond_tokens = [5,6,7,8]
@@ -81,6 +83,12 @@ for dataset in ['qm9', 'zinc']:
     tokens_list_diff_node_edge.extend(bond_tokens)
     TOKENS_DICT_DIFF_MOL[dataset] = tokens_list_diff_node_edge
     
+    tokens_list_diff_node_edge_ni = standard_tokens.copy()
+    tokens_list_diff_node_edge_ni.extend([(num, b) for b in np.arange(0,bw+1) for num in np.arange(0,2)])
+    tokens_list_diff_node_edge_ni.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_diff_node_edge_ni.extend(bond_tokens)
+    TOKENS_DICT_DIFF_NI_MOL[dataset] = tokens_list_diff_node_edge_ni
+    
 
 def token_list_to_dict(tokens):
     return {token: i for i, token in enumerate(tokens)}
@@ -90,7 +98,7 @@ TOKENS_KEY_DICT_DIFF_MOL = {key: token_list_to_dict(value) for key, value in TOK
 TOKENS_KEY_DICT_FLATTEN_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_FLATTEN_MOL.items()}
 TOKENS_KEY_DICT_SEQ_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MOL.items()}
 TOKENS_KEY_DICT_SEQ_MERGE_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_SEQ_MERGE_MOL.items()}
-
+TOKENS_KEY_DICT_DIFF_NI_MOL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF_NI_MOL.items()}
 
 def token_to_id_mol(data_name, string_type):
     if string_type in ['adj_list']:
@@ -103,6 +111,8 @@ def token_to_id_mol(data_name, string_type):
         return TOKENS_KEY_DICT_SEQ_MOL[data_name]
     elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
         return TOKENS_KEY_DICT_SEQ_MERGE_MOL[data_name]
+    elif string_type == 'adj_list_diff_ni':
+        return TOKENS_KEY_DICT_DIFF_NI_MOL[data_name]
 
 def id_to_token_mol(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
@@ -124,6 +134,34 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
                 edge_diff = map_diff(edge)
                 tokens.append(edge_diff)
             tokens.append(edge_attr_reverse[edge])
+            prev_src_node = cur_src_node
+    elif string_type == 'adj_list_diff_ni':
+        edge_attr_reverse = {(key[1], key[0]): value for key, value in edge_attr.items()}
+        reverse_adj_list = [(tar, src) for src, tar in adj_list]
+        src_node_set = set([src for src, tar in reverse_adj_list])
+        for node in range(max(src_node_set)+1):
+            if node not in src_node_set:
+                reverse_adj_list.append((node, node))
+        reverse_adj_list = sorted(reverse_adj_list, key=lambda x: x[0])
+        tokens.append(node_attr[0])
+        prev_src_node = -1
+        for edge in reverse_adj_list:
+            src_node = edge[0]
+            tar_node = edge[1]
+            cur_src_node = src_node
+            if cur_src_node != prev_src_node:
+                tokens.append(node_attr[cur_src_node])
+                final_src_node = 1
+            else:
+                final_src_node = 0
+            if src_node == tar_node:
+                tokens.append((final_src_node, 0))
+                # virtual edge type
+                tokens.append(5)
+            else:
+                edge_diff = map_diff_ni(edge)
+                tokens.append((final_src_node, edge_diff[1]))
+                tokens.append(edge_attr[edge])
             prev_src_node = cur_src_node
     elif string_type == 'adj_flatten':
         tokens.extend(torch.flatten(torch.tensor(adj.todense())).tolist())
@@ -183,6 +221,8 @@ def untokenize_mol(sequence, data_name, string_type, is_token, vocab_size=200):
         tokens = TOKENS_DICT_SEQ_MOL[data_name]
     elif string_type in ['adj_seq_rel_merge', 'adj_seq_merge']:
         tokens = TOKENS_DICT_SEQ_MERGE_MOL[data_name]
+    elif string_type == 'adj_list_diff_ni':
+        tokens = TOKENS_DICT_DIFF_NI_MOL[data_name]
         
     ID2TOKEN = id_to_token_mol(tokens)
     tokens = [ID2TOKEN[id_] for id_ in sequence]

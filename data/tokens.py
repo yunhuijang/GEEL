@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank
 from data.orderings import bw_from_adj
-from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL, TOKENS_DICT_DIFF_MOL
+from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL, TOKENS_DICT_DIFF_MOL, TOKENS_DICT_DIFF_NI_MOL
 
 
 PAD_TOKEN = "[pad]"
@@ -276,14 +276,18 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
             tokens = TOKENS_DICT_DIFF_MOL[data_name]
         else:
             tokens = TOKENS_DICT_DIFF[data_name]
+    elif string_type == 'adj_list_diff_ni':
+        if data_name in ['qm9', 'zinc']:
+            tokens = TOKENS_DICT_DIFF_NI_MOL[data_name]
+        else:
+            tokens = TOKENS_DICT_DIFF_NI[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         tokens = TOKENS_DICT_SEQ[data_name]
     elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
         tokens = TOKENS_DICT_SEQ_MERGE_MOL[data_name]
-    elif string_type == 'adj_list_diff_ni':
-        tokens = TOKENS_DICT_DIFF_NI[data_name]
+
     else:
         assert False, "No token type"
     return tokens
