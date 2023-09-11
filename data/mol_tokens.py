@@ -139,11 +139,11 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
         edge_attr_reverse = {(key[1], key[0]): value for key, value in edge_attr.items()}
         reverse_adj_list = [(tar, src) for src, tar in adj_list]
         src_node_set = set([src for src, tar in reverse_adj_list])
-        for node in range(max(src_node_set)+1):
+        for node in node_attr.keys():
             if node not in src_node_set:
                 reverse_adj_list.append((node, node))
         reverse_adj_list = sorted(reverse_adj_list, key=lambda x: x[0])
-        tokens.append(node_attr[0])
+        # tokens.append(node_attr[0])
         prev_src_node = -1
         for edge in reverse_adj_list:
             src_node = edge[0]
