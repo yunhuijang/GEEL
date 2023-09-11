@@ -28,7 +28,7 @@ def adj_to_adj_list(adj):
     '''
     adjacency matrix to adjacency list
     '''
-    adj_matrix = adj.todense()
+    adj_matrix = adj.todense() 
     num_nodes = len(adj_matrix)
     adj_list = []
     
@@ -317,7 +317,7 @@ def n_community(c_sizes, p_inter=0.05):
                 G.add_edge(nodes1[0], nodes2[0])
     return G
 
-def load_graphs(data_name, order='C-M'):
+def load_graphs(data_name, order='C-M', seed=0, is_train=False):
     raw_dir = f"resource/{data_name}"
     if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid']:
         with open(f'{raw_dir}.pkl', 'rb') as f:
@@ -390,15 +390,19 @@ def load_graphs(data_name, order='C-M'):
         order_func = ORDER_FUNCS[order]
         
         if data_name == 'mnist':
-            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
             new_ordered_graphs = [to_networkx(ordered_graph.to_mnist_data()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
         elif data_name in ['qm9', 'zinc']:
-            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True)
-            new_ordered_graphs = [to_networkx(ordered_graph.to_mol_data(), node_attrs=['x'], edge_attrs=['edge_attr'], to_undirected=True) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
+            new_ordered_graphs = [to_networkx(ordered_graph.to_mol_data(), node_attrs=['x'], edge_attrs=['edge_attr'], to_undirected=True) for ordered_graph in total_ordered_graphs]
         else:
-            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=False)
-            new_ordered_graphs = [nx.from_numpy_array(ordered_graph.to_adjacency().numpy()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
+            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=False, seed=seed)
+            new_ordered_graphs = [nx.from_numpy_array(ordered_graph.to_adjacency().numpy()) for ordered_graph in total_ordered_graphs]
         graph_list.append(new_ordered_graphs)
+        if is_train:
+            # return only train graphs
+            torch.save(new_ordered_graphs, f'ordered_dataset/{data_name}/{seed}.pt')
+            return new_ordered_graphs
     
     return graph_list
 

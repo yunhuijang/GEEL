@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 import wandb
 from time import gmtime, strftime
-import pickle
+import os
 import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
@@ -39,6 +39,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.is_token = hparams.is_token
         self.vocab_size = hparams.vocab_size
         self.dataset_name = hparams.dataset_name
+        self.replicate = hparams.replicate
+        self.max_epochs = hparams.max_epochs
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -57,18 +59,31 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'community': ComLargeDataset
         }.get(hparams.dataset_name)
         
-        self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order)
-
-        self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
-                                                                   for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
-        self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+        _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
+        
+        train_datasets = []
+        
+        for epoch in tqdm(range(self.max_epochs), 'Order training graphs'):
+            file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch}.pt'
+            if os.path.isfile(file_path):
+                train_graphs = torch.load(file_path)
+            else:
+                train_graphs = load_graphs(hparams.dataset_name, self.order, epoch, is_train=True)
+            train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size)
+            train_datasets.append(train_dataset)
+        self.train_dataset = train_datasets
+        train_bw = max([dataset.bw for dataset in train_datasets])
+        self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+                                                                   for graphs in [self.val_graphs, self.test_graphs]]
+        self.bw = max(train_bw, self.val_dataset.bw, self.test_dataset.bw)
+        print(self.bw)
         self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if hparams.dataset_name in ['qm9', 'zinc']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-                self.train_smiles = f.readlines()
+                self.train_smiles = f.readlines()[:100]
                 self.train_smiles = canonicalize_smiles(self.train_smiles)
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-                self.test_smiles = f.readlines()
+                self.test_smiles = f.readlines()[:100]
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
         
     def setup_model(self, hparams):

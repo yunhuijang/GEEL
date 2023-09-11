@@ -9,7 +9,6 @@ import networkx as nx
 import torch
 from torch_geometric.data import Data
 from torch_geometric.utils import from_scipy_sparse_matrix
-from tqdm import tqdm
 
 # Codes adapted from https://github.com/Genentech/bandwidth-graph-generation
 
@@ -154,7 +153,7 @@ def order_graphs(
     num_repetitions: int = 1, seed: int = 0, is_mol=False
 ):
     ordered_graphs = []
-    for i, graph in enumerate(tqdm(graphs, 'Order graphs')):
+    for i, graph in enumerate(graphs):
         for j in range(num_repetitions):
             # seed = i * (j + 1) + j
             random.seed(seed)

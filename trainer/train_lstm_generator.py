@@ -47,7 +47,7 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
     ### 
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset,
+            self.train_dataset[self.current_epoch],
             batch_size=self.hparams.batch_size,
             shuffle=True,
             collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
@@ -94,17 +94,17 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         #
         parser.add_argument("--emb_size", type=int, default=512)
         parser.add_argument("--dropout", type=float, default=0.1)
-        parser.add_argument("--lr", type=float, default=0.0002)
+        parser.add_argument("--lr", type=float, default=0.0001)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=20)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
-        parser.add_argument("--max_epochs", type=int, default=100)
+        parser.add_argument("--max_epochs", type=int, default=2000)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='lstm')
-        parser.add_argument("--max_len", type=int, default=99)
+        parser.add_argument("--max_len", type=int, default=245)
         parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
         
         
