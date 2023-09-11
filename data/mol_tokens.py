@@ -85,6 +85,7 @@ for dataset in ['qm9', 'zinc']:
     
     tokens_list_diff_node_edge_ni = standard_tokens.copy()
     tokens_list_diff_node_edge_ni.extend([(num, b) for b in np.arange(0,bw+1) for num in np.arange(0,2)])
+    tokens_list_diff_node_edge_ni.remove((0,0))
     tokens_list_diff_node_edge_ni.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
     tokens_list_diff_node_edge_ni.extend(bond_tokens)
     TOKENS_DICT_DIFF_NI_MOL[dataset] = tokens_list_diff_node_edge_ni

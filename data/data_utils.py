@@ -58,24 +58,6 @@ def adj_list_to_adj(adj_list):
 
     return adj
 
-def featured_adj_list_to_adj(adj_list):
-    '''
-    edge featured adjacency list to weighted adjacency matrix
-    '''
-    if len(adj_list) < 2:
-        num_nodes = len(adj_list)
-        adj = [[0] * num_nodes for _ in range(num_nodes)]
-        return np.array(adj)
-    
-    num_nodes =  max(map(max, adj_list))+1
-    adj = [[0] * num_nodes for _ in range(num_nodes)]
-    
-    for n, e, f in adj_list:
-        adj[n][e] = f
-        adj[e][n] = f
-
-    return np.array(adj)
-
 def adj_list_diff_to_adj_list(adj_list_diff):
     return [(token[0], token[0]-token[1]) for token in adj_list_diff]
 
@@ -84,7 +66,10 @@ def diff_to_adj_list(adj_list_diff):
 
 def adj_list_diff_ni_to_adj_list(adj_list_diff_ni):
     src_node = 0
-    adj_list_diff = [(0, adj_list_diff_ni[0][1])]
+    if adj_list_diff_ni[0][1] != 0:
+        adj_list_diff = [(0, adj_list_diff_ni[0][1])]
+    else:
+        adj_list_diff = []
     for ni, tar_node in adj_list_diff_ni[1:]:
         if ni == 1:
             src_node += 1

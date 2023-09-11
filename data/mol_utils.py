@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, featured_adj_list_to_adj, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
+from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
 
 
 DATA_DIR = "resource"
@@ -199,6 +199,20 @@ def get_edge_from_adj_list(sample):
 def get_feature_from_adj_list(sample):
     return [elem for elem in sample if type(elem) is not tuple]
 
+def get_feature_from_adj_list_diff_ni(sample):
+    # filter out self loop bond features
+    sample_tuple_list = [(prev, cur) for prev, cur in zip(sample[:-1], sample[1:])]
+    feature_list = [sample[0]]
+    feature_list.extend([cur for prev, cur in sample_tuple_list if (type(cur) is not tuple) and (prev != (1,0))])
+    return feature_list
+
+def check_diff_ni_validity_mol(sample):
+    adj_list = get_edge_from_adj_list(sample)
+    if adj_list[0][0] == 0:
+        return False
+    else:
+        return True
+
 def map_featured_samples_to_adjs(samples, samples_feature, string_type):
     # return weighted adjacency matrix (edge features) and node features
     if string_type in ['adj_seq', 'adj_seq_rel']:
@@ -212,8 +226,13 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
     elif string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
         samples = [sample for sample in samples if len(sample)>0]
+        if string_type == 'adj_list_diff_ni':
+            samples = [sample for sample in samples if check_diff_ni_validity_mol(sample)]
+            feature_seqs = [get_feature_from_adj_list_diff_ni(sample) for sample in samples]
+        else:
+            feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
         adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
-        feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
+            
         if string_type == 'adj_list_diff':
             adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
         elif string_type == 'adj_list_diff_ni':
@@ -233,7 +252,10 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
     else:
         xs = [[elem for elem in feature_seq if elem in NODE_TYPE_TO_ATOM_NUM.keys()] for feature_seq in feature_seqs]
-        edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
+        if string_type == 'adj_list_diff_ni':
+            edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
+        else:
+            edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
         
     featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
     weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
@@ -241,8 +263,8 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         for adj in weighted_adjs:
             np.fill_diagonal(adj, 0)
         # weighted_adjs = [np.fill_diagonal(adj, 0) for adj in weighted_adjs]
-    final_weighted_adjs = [weighted_adj for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
-    final_xs = [x for weighted_adj, x in zip(weighted_adjs, xs) if len(weighted_adj) == len(x)]
+    final_weighted_adjs = [weighted_adj for weighted_adj, x in zip(weighted_adjs, xs) if (len(weighted_adj) == len(x)) and (len(weighted_adj)>1)]
+    final_xs = [x for weighted_adj, x in zip(weighted_adjs, xs) if (len(weighted_adj) == len(x)) and (len(weighted_adj)>1)]
 
     return final_weighted_adjs, final_xs
             
@@ -263,3 +285,30 @@ def map_featured_adj_list(adj_list, edge_feature):
         featured_adj_list.append(edge + (edge_feature,)) 
         
     return featured_adj_list
+
+def make_empty_adj(num_nodes):
+    adj = [[0] * num_nodes for _ in range(num_nodes)]
+    return np.array(adj)
+    
+
+def featured_adj_list_to_adj(adj_list):
+    '''
+    edge featured adjacency list to weighted adjacency matrix
+    '''
+    if len(adj_list) < 2:
+        return make_empty_adj(1)
+    
+    max_src_node = max([elem[0] for elem in adj_list])
+    max_tar_node = max([elem[1] for elem in adj_list])
+    max_num_nodes = max(max_src_node, max_tar_node)+1
+    
+    if max_num_nodes < 2:
+        return make_empty_adj(1)
+    
+    adj = [[0] * max_num_nodes for _ in range(max_num_nodes)]
+    
+    for n, e, f in adj_list:
+        adj[n][e] = f
+        adj[e][n] = f
+
+    return np.array(adj)

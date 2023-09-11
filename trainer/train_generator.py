@@ -59,32 +59,39 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'community': ComLargeDataset
         }.get(hparams.dataset_name)
         
-        _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
-        
-        train_datasets = []
-        
-        for epoch in tqdm(range(self.max_epochs), 'Order training graphs'):
-            file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch}.pt'
-            if os.path.isfile(file_path):
-                train_graphs = torch.load(file_path)
-            else:
-                train_graphs = load_graphs(hparams.dataset_name, self.order, epoch, is_train=True)
-            train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size)
-            train_datasets.append(train_dataset)
-        self.train_dataset = train_datasets
-        train_bw = max([dataset.bw for dataset in train_datasets])
-        self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
-                                                                   for graphs in [self.val_graphs, self.test_graphs]]
-        self.bw = max(train_bw, self.val_dataset.bw, self.test_dataset.bw)
-        print(self.bw)
-        self.num_nodes = get_max_len(hparams.dataset_name)[1]
-        if hparams.dataset_name in ['qm9', 'zinc']:
+        if self.dataset_name in ['qm9', 'zinc']:
+            self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, hparams.replicate)
+
+            self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+                                                                        for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
+            self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+
+            self.num_nodes = get_max_len(hparams.dataset_name)[1]
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
                 self.train_smiles = f.readlines()[:100]
                 self.train_smiles = canonicalize_smiles(self.train_smiles)
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
                 self.test_smiles = f.readlines()[:100]
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
+        else:
+            _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
+            
+            train_datasets = []
+            
+            for epoch in tqdm(range(self.max_epochs), 'Order training graphs'):
+                file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch}.pt'
+                if os.path.isfile(file_path):
+                    train_graphs = torch.load(file_path)
+                else:
+                    train_graphs = load_graphs(hparams.dataset_name, self.order, epoch, is_train=True)
+                train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size)
+                train_datasets.append(train_dataset)
+            self.train_dataset = train_datasets
+            train_bw = max([dataset.bw for dataset in train_datasets])
+            self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+                                                                    for graphs in [self.val_graphs, self.test_graphs]]
+            self.bw = max(train_bw, self.val_dataset.bw, self.test_dataset.bw)
+            
         
     def setup_model(self, hparams):
         self.model = TransGenerator(
@@ -139,7 +146,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             if self.dataset_name in ['qm9', 'zinc']:
             # self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
                 weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, None, self.string_type)
-                evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
+                if len(weighted_adjs) > 0:
+                    evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
             else:
                 adjs = map_samples_to_adjs(adj_lists, self.string_type, self.is_token)
                 wandb.log({'ratio': len(adjs) / len(adj_lists)})
@@ -183,7 +191,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
                 
-            if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff']) and (self.dataset_name in ['qm9', 'zinc']):
+            if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff', 'adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
                 org_strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             else:
