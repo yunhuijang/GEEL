@@ -46,13 +46,22 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         
     ### 
     def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset[self.current_epoch],
-            batch_size=self.hparams.batch_size,
-            shuffle=True,
-            collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
-            num_workers=self.hparams.num_workers,
-        )
+        if self.is_random_order:
+            return DataLoader(
+                self.train_dataset[self.current_epoch],
+                batch_size=self.hparams.batch_size,
+                shuffle=True,
+                collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
+                num_workers=self.hparams.num_workers,
+            )
+        else:
+            return DataLoader(
+                self.train_dataset,
+                batch_size=self.hparams.batch_size,
+                shuffle=True,
+                collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
+                num_workers=self.hparams.num_workers,
+            )
         
     def test_dataloader(self):
         return DataLoader(
@@ -85,8 +94,8 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
-        parser.add_argument("--batch_size", type=int, default=8)
+        parser.add_argument("--dataset_name", type=str, default="lobster")
+        parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=0)
 
         parser.add_argument("--order", type=str, default="C-M")
@@ -99,12 +108,12 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--check_sample_every_n_epoch", type=int, default=5)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
-        parser.add_argument("--max_epochs", type=int, default=2000)
+        parser.add_argument("--max_epochs", type=int, default=10)
         parser.add_argument("--wandb_on", type=str, default='disabled')
         
         parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='lstm')
-        parser.add_argument("--max_len", type=int, default=245)
+        parser.add_argument("--max_len", type=int, default=44)
         parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
         
         
@@ -116,6 +125,7 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--run_id", type=str, default=None)
         parser.add_argument("--is_simple_token", action="store_true")
+        parser.add_argument("--is_random_order", action="store_true")
 
         return parser
 

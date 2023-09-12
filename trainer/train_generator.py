@@ -41,6 +41,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.dataset_name = hparams.dataset_name
         self.replicate = hparams.replicate
         self.max_epochs = hparams.max_epochs
+        self.is_random_order = hparams.is_random_order
         dataset_cls = {
             "GDSS_grid": GridDataset,
             "GDSS_ego": EgoDataset,
@@ -58,22 +59,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'ego': EgoLargeDataset,
             'community': ComLargeDataset
         }.get(hparams.dataset_name)
-        
-        if self.dataset_name in ['qm9', 'zinc']:
-            self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, hparams.replicate)
-
-            self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
-                                                                        for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
-            self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
-
-            self.num_nodes = get_max_len(hparams.dataset_name)[1]
-            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-                self.train_smiles = f.readlines()[:100]
-                self.train_smiles = canonicalize_smiles(self.train_smiles)
-            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-                self.test_smiles = f.readlines()[:100]
-                self.test_smiles = canonicalize_smiles(self.test_smiles)
-        else:
+        self.num_nodes = get_max_len(hparams.dataset_name)[1]
+        if self.is_random_order:
             _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
             
             train_datasets = []
@@ -91,6 +78,21 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                     for graphs in [self.val_graphs, self.test_graphs]]
             self.bw = max(train_bw, self.val_dataset.bw, self.test_dataset.bw)
+            
+        else:
+            self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, hparams.replicate)
+            self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+                                                                        for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
+            self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+        
+        if self.dataset_name in ['qm9', 'zinc']:
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
+                self.train_smiles = f.readlines()[:100]
+                self.train_smiles = canonicalize_smiles(self.train_smiles)
+            with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
+                self.test_smiles = f.readlines()[:100]
+                self.test_smiles = canonicalize_smiles(self.test_smiles)
+            
             
         
     def setup_model(self, hparams):
