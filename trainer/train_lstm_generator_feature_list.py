@@ -85,7 +85,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="qm9")
+        parser.add_argument("--dataset_name", type=str, default="moses")
         parser.add_argument("--batch_size", type=int, default=1024)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -105,7 +105,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='lstm')
         parser.add_argument("--max_len", type=int, default=45)
-        parser.add_argument("--string_type", type=str, default='adj_list_diff')
+        parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
         
         
         # transformer
@@ -116,6 +116,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--run_id", type=str, default=None)
         parser.add_argument("--is_simple_token", action="store_true")
+        parser.add_argument("--is_random_order", action="store_true")
 
         return parser
 

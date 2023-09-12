@@ -4,7 +4,7 @@ from itertools import product
 import sentencepiece as spm
 from collections import defaultdict
 
-from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank
+from data.data_utils import flatten_forward, map_string_adj_seq, map_string_adj_seq_rel, map_string_flat_sym, map_string_adj_seq_blank, map_string_adj_seq_rel_blank, adj_list_diff_ni_to_adj_list
 from data.orderings import bw_from_adj
 from data.mol_tokens import TOKENS_DICT_SEQ_MERGE_MOL, TOKENS_DICT_MOL, TOKENS_DICT_DIFF_MOL, TOKENS_DICT_DIFF_NI_MOL
 
@@ -17,11 +17,11 @@ UNK_TOKEN = "<unk>"
 standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
 dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 
-                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc']
+                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc', 'moses']
 # dataset_list = ['GDSS_ego']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, 38]
-bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10]
+node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, 38, 26]
+bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10, 6]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
@@ -311,3 +311,15 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
     else:
         assert False, "No token type"
     return tokens
+
+def check_reconstruction(data_name, string_type):
+    adj_list = [(1,0), (2,0), (5,2), (5,3), (6,0), (7,4)]
+    tokens = map_tokens(data_name, string_type, vocab_size=None)
+    sequence = tokenize(None, adj_list, data_name, string_type)
+    ID2TOKEN = id_to_token(tokens)
+    print([ID2TOKEN[i] for i in sequence])
+    un_tokens = untokenize(sequence, data_name, string_type, is_token=False)[0]
+    # TODO: change the mapping function dependent on string_type
+    a = adj_list_diff_ni_to_adj_list(un_tokens)
+    print(a)
+    print(a)

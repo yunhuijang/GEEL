@@ -12,7 +12,7 @@ import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
 from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
@@ -48,16 +48,16 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             "GDSS_com": ComDataset,
             "GDSS_enz": EnzDataset,
             "grid_small": GridSmallDataset,
-            'qm9': QM9Dataset,
-            'zinc': ZINCDataset,
             'planar': PlanarDataset,
             'sbm': SBMDataset,
             'proteins': ProteinsDataset,
-            # 'mnist': MNISTSuperPixelDataset,
             'lobster': LobsterDataset,
             'point': PointCloudDataset,
             'ego': EgoLargeDataset,
-            'community': ComLargeDataset
+            'community': ComLargeDataset,
+            'qm9': QM9Dataset,
+            'zinc': ZINCDataset,
+            'moses': MosesDataset
         }.get(hparams.dataset_name)
         self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:
@@ -84,13 +84,17 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                         for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
             self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
+        # if self.dataset_name == 'moses':
+        #     print(f'num node: {self.num_nodes}')
+        #     print(f'bw: {self.bw}')
+        #     assert False
         
-        if self.dataset_name in ['qm9', 'zinc']:
+        if self.dataset_name in ['qm9', 'zinc', 'moses']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-                self.train_smiles = f.readlines()
+                self.train_smiles = f.readlines()[:100]
                 self.train_smiles = canonicalize_smiles(self.train_smiles)
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-                self.test_smiles = f.readlines()
+                self.test_smiles = f.readlines()[:100]
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
             
             

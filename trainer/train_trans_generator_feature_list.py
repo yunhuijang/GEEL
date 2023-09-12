@@ -124,6 +124,7 @@ class TransGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--vocab_size", type=int, default=70)
         
         parser.add_argument("--run_id", type=str, default=None)
+        parser.add_argument("--is_random_order", action="store_true")
 
         return parser
 
