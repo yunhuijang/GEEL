@@ -5,7 +5,8 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT, seq_to_adj, seq_rel_to_adj, seq_to_adj_list, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
+from data.data_utils import seq_to_adj, seq_rel_to_adj, seq_to_adj_list, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
+from data.mol_tokens import NODE_TYPE_DICT, BOND_TYPE_DICT
 
 
 DATA_DIR = "resource"

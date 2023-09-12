@@ -10,8 +10,7 @@ import torch.nn.functional as F
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id
-from data.mol_tokens import TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL, TOKENS_DICT_SEQ_MOL, token_to_id_mol, id_to_token_mol, PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, NODE_TOKENS_DICT
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
+from data.mol_tokens import TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL, TOKENS_DICT_SEQ_MOL, token_to_id_mol, id_to_token_mol, PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, NODE_TOKENS_DICT, NODE_TYPE_DICT, BOND_TYPE_DICT
 from model.trans_generator import TokenEmbedding
 
 

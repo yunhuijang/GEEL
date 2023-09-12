@@ -9,9 +9,8 @@ import os
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, id_to_token, map_tokens
-from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
+from data.tokens import PAD_TOKEN, id_to_token, map_tokens
+from data.mol_tokens import token_to_id_mol
 from model.lstm_generator_feature_list import TokenEmbedding, LSTMGeneratorFeatureList
 
 class AbsolutePositionalEncoding(nn.Module):

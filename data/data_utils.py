@@ -18,10 +18,6 @@ from data.orderings import ORDER_FUNCS, order_graphs
 
 
 DATA_DIR = "resource"
-NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17}
-TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
-BOND_TYPE_DICT = {1: 5, 2: 6, 3: 7, 1.5: 8}
-TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}
 
 
 def adj_to_adj_list(adj):

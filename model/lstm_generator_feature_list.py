@@ -9,8 +9,7 @@ import os
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, map_tokens
-from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT
-from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
+from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT, NODE_TYPE_DICT, BOND_TYPE_DICT
 
 
 class TokenEmbedding(nn.Module):
