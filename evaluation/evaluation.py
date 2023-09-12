@@ -450,6 +450,8 @@ def evaluate_molecules(weighted_adjs, xs, data_name, test_graphs, device, test_s
     mols = [elem[0] for elem in mols_no_correct]
     no_corrects = [elem[1] for elem in mols_no_correct]
     num_mols = len(mols)
+    if num_mols < 1:
+        return
     gen_smiles = mols_to_smiles(mols)
     gen_smiles = [smi for smi in gen_smiles if len(smi)]
     table = wandb.Table(columns=['SMILES'])

@@ -66,13 +66,13 @@ def diff_to_adj_list(adj_list_diff):
 
 def adj_list_diff_ni_to_adj_list(adj_list_diff_ni):
     src_node = 0
-    if adj_list_diff_ni[0][1] != 0:
+    if adj_list_diff_ni[0][1] > 0:
         adj_list_diff = [(0, adj_list_diff_ni[0][1])]
     else:
         adj_list_diff = []
     for ni, tar_node in adj_list_diff_ni[1:]:
-        if ni == 1:
-            src_node += 1
+        if ni >= 1:
+            src_node += ni
             if tar_node == 0:
                 continue
         adj_list_diff.append((src_node, tar_node))
@@ -538,11 +538,11 @@ def map_samples_to_adjs(samples, string_type, is_token):
     # map adj_list_diff to adj_list
     if string_type == 'adj_list_diff':
         filtered_samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
-    elif string_type == 'adj_list_diff_ni':
+    elif string_type in ['adj_list_diff_ni', 'adj_list_diff_ni_rel']:
         filtered_samples = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in filtered_samples]
     # map adjacecny matrices from samples
-    if string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
-        adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples if check_adj_list_validity(adj_list)>0]
+    if string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni', 'adj_list_diff_ni_rel']:
+        adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples if check_adj_list_validity(adj_list)]
     elif string_type == 'adj_flatten':
         adjs = [adj_flatten_to_adj(adj_flatten) for adj_flatten in filtered_samples if is_square(adj_flatten)]
         adjs = [adj for adj in adjs if is_symmetric(adj)]
