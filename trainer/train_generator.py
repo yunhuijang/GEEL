@@ -87,10 +87,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         
         if self.dataset_name in ['qm9', 'zinc']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
-                self.train_smiles = f.readlines()[:100]
+                self.train_smiles = f.readlines()
                 self.train_smiles = canonicalize_smiles(self.train_smiles)
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_test.txt', 'r') as f:
-                self.test_smiles = f.readlines()[:100]
+                self.test_smiles = f.readlines()
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
             
             
