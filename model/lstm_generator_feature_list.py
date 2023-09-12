@@ -8,7 +8,7 @@ import os
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, id_to_token, map_tokens
+from data.tokens import PAD_TOKEN, BOS_TOKEN, EOS_TOKEN, map_tokens
 from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT
 from data.data_utils import NODE_TYPE_DICT, BOND_TYPE_DICT
 
@@ -104,7 +104,6 @@ class LSTMGeneratorFeatureList(nn.Module):
         sequences = torch.LongTensor([[TOKEN2ID[BOS_TOKEN]] for _ in range(num_samples)]).to(device)
         ended = torch.tensor([False for _ in range(num_samples)], dtype=torch.bool).to(device)
         for index in tqdm(range(max_len), "generation"):
-            # TODO: fix mask
             if ended.all():
                 break
             current_tokens = sequences[:, index]
@@ -143,14 +142,12 @@ class LSTMGeneratorFeatureList(nn.Module):
             node_type_edge_nonni_logits[:, edge_indices_non_ni] = current_logits[:, edge_indices_non_ni]
             node_type_edge_nonni_logits[:, TOKEN2ID[EOS_TOKEN]] = current_logits[:, TOKEN2ID[EOS_TOKEN]]
             
-            
             if index == 0:
                 target_logits = node_type_logits
             elif index == 1:
                 if self.string_type == 'adj_list_diff_ni':
                     target_logits = edge_ni_logits
                 else:
-                # if self.string_type != 'adj_list_diff_ni':
                     target_logits = node_type_logits
             else:
                 if self.string_type == 'adj_list_diff_ni':
