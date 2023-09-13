@@ -15,9 +15,9 @@ standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
 dataset_list = ['qm9', 'zinc', 'moses', 'guacamol']
 # maximum number of nodes of each dataset (train, test, val)
-# TODO: fix moses / guacamol node_num and bw
-node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 26, 'guacamol': 25}
-bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 6, 'guacamol': 10}
+
+node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 31, 'guacamol': 25}
+bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 10}
 
 TOKENS_DICT_MOL = {}
 TOKENS_DICT_FLATTEN_MOL = {}
@@ -32,12 +32,11 @@ def map_diff(token):
 def map_diff_ni(token):
     return (token[0], token[1]-token[0])
 
-# TODO: fix guacamol node_type
 NODE_TOKENS_DICT = {'qm9': ['F', 'O', 'N', 'C'], 'zinc': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S'],
-                    'moses': ['F', 'O', 'N', 'C', 'Cl', 'Br', 'S'], 'guacamol': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S']}
+                    'moses': ['F', 'O', 'N', 'C', 'Cl', 'Br', 'S'], 'guacamol': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S', 'B', 'Se', 'Si']}
 bond_tokens = [5,6,7,8]
 
-NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17}
+NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17, 'B': 18, 'Se': 19, 'Si': 20}
 TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
 BOND_TYPE_DICT = {1: 5, 2: 6, 3: 7, 1.5: 8}
 TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}

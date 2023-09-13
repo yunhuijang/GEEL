@@ -19,7 +19,6 @@ class SimpleTokenEmbedding(nn.Module):
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    # TODO: token embedding eimension
     def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
         super(TokenEmbedding, self).__init__()
 

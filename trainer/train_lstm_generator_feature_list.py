@@ -96,7 +96,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.0001)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=20)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=10)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=2000)
