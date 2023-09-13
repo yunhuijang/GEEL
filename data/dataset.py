@@ -116,3 +116,8 @@ class MosesDataset(QM9Dataset):
     data_name = 'moses'
     raw_dir = f"{DATA_DIR}/moses"
     is_mol = True
+    
+class GuacamolDataset(QM9Dataset):
+    data_name = 'guacamol'
+    raw_dir = f"{DATA_DIR}/guacamol"
+    is_mol = True

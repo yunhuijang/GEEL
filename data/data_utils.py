@@ -350,7 +350,7 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
             np.random.seed(1234+k)
             c_sizes = np.random.choice(np.arange(30, 81), num_communities)
             graphs.append(n_community(c_sizes, p_inter=0.05))
-    elif data_name in ['qm9', 'zinc', 'moses']:
+    elif data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
         graphs_list = []
         for split in ['train', 'val', 'test']:
             file_path = f'resource/{data_name}/{data_name}_graph_{split}.pkl'
@@ -362,7 +362,7 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
         adjs, _, _, _, _, _, _, _ = torch.load(f'{raw_dir}.pt')
         graphs = [adj_to_graph(adj) for adj in adjs]
         
-    if data_name not in  ['mnist', 'qm9', 'zinc', 'moses']:
+    if data_name not in  ['mnist', 'qm9', 'zinc', 'moses', 'guacamol']:
         train_graphs, val_graphs, test_graphs = train_val_test_split(graphs, data_name)
     
     graph_list = []
@@ -374,7 +374,7 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
         if data_name == 'mnist':
             total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
             new_ordered_graphs = [to_networkx(ordered_graph.to_mnist_data()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
-        elif data_name in ['qm9', 'zinc', 'moses']:
+        elif data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
             new_ordered_graphs = [to_networkx(ordered_graph.to_mol_data(), node_attrs=['x'], edge_attrs=['edge_attr'], to_undirected=True) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
         else:
@@ -523,7 +523,6 @@ def map_samples_to_adjs(samples, string_type, is_token):
             filtered_samples = ["".join(sample) for sample in filtered_samples]
             # filtered_samples = [' '.join(sample) for sample in filtered_samples]
         else:
-            # TODO: fix error in joining
             filtered_samples = [''.join(sample) for sample in filtered_samples]
             filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
             filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]

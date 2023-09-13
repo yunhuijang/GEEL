@@ -16,12 +16,14 @@ UNK_TOKEN = "<unk>"
 
 standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 
+# TODO: fix moses / guacamol node_num and bw
+
 dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 
-                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc', 'moses']
+                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc', 'moses', 'guacamol']
 # dataset_list = ['GDSS_ego']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, 38, 26]
-bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10, 6]
+node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, 38, 26, 25]
+bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10, 6, 6]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
@@ -285,17 +287,17 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
-        if data_name in ['qm9', 'zinc']:
+        if data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             tokens = TOKENS_DICT_MOL[data_name]
         else:
             tokens = TOKENS_DICT[data_name]
     elif string_type == 'adj_list_diff':
-        if data_name in ['qm9', 'zinc']:
+        if data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             tokens = TOKENS_DICT_DIFF_MOL[data_name]
         else:
             tokens = TOKENS_DICT_DIFF[data_name]
     elif string_type == 'adj_list_diff_ni':
-        if data_name in ['qm9', 'zinc']:
+        if data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             tokens = TOKENS_DICT_DIFF_NI_MOL[data_name]
         else:
             tokens = TOKENS_DICT_DIFF_NI[data_name]
