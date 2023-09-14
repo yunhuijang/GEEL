@@ -19,6 +19,77 @@ dataset_list = ['qm9', 'zinc', 'moses', 'guacamol']
 node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 31, 'guacamol': 25}
 bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 10}
 
+# TODO: Fix TOKEN2ATOMFEAT with guacamol data
+TOKEN2ATOMFEAT = {
+    "[B]": (5, 0, 0),
+    "[B-]": (5, -1, 0),
+    "[BH2-]": (5, -1, 2),
+    "[BH3-]": (5, -1, 3),
+    "[BH-]": (5, -1, 1),
+    "[CH]": (6, 0, 1),
+    "[CH2]": (6, 0, 2),
+    "[CH-]": (6, -1, 1),
+    "[CH2-]": (6, -1, 2),
+    "[C]": (6, 0, 0),
+    "[C+]": (6, 1, 0),
+    "[CH+]": (6, 1, 1),
+    "[CH2+]": (6, 1, 2),
+    "[C-]": (6, -1, 0),
+    "[N-]": (7, -1, 0),
+    "[NH-]": (7, -1, 1),
+    "[N]": (7, 0, 0),
+    "[NH]": (7, 0, 1),
+    "[N+]": (7, 1, 0),
+    "[NH+]": (7, 1, 1),
+    "[NH2+]": (7, 1, 2),
+    "[NH3+]": (7, 1, 3),
+    "[O-]": (8, -1, 0),
+    "[O]": (8, 0, 0),
+    "[O+]": (8, 1, 0),
+    "[OH+]": (8, 1, 1),
+    "[F]": (9, 0, 0),
+    "[F+]": (9, 1, 0),
+    "[F-]": (9, -1, 0),
+    "[Si]": (14, 0, 0),
+    "[Si-]": (14, -1, 0),
+    "[SiH-]": (14, -1, 1),
+    "[SiH2]": (14, 0, 2),
+    "[Si+]": (14, 0, 1),
+    "[P]": (15, 0, 0),
+    "[PH]": (15, 0, 1),
+    "[PH2]": (15, 0, 2),
+    "[P+]": (15, 1, 0),
+    "[PH+]": (15, 1, 1),
+    "[PH2+]": (15, 1, 2),
+    "[P-]": (15, -1, 0),
+    "[S-]": (16, -1, 0),
+    "[S]": (16, 0, 0),
+    "[S+]": (16, 1, 0),
+    "[SH]": (16, 0, 1),
+    "[SH+]": (16, 1, 1),
+    "[Cl]": (17, 0, 0),
+    "[Cl+]": (17, 1, 0),
+    "[Cl-]": (17, -1, 0),
+    "[Cl++]": (17, 2, 0),
+    "[Cl+++]": (17, 3, 0),
+    "[Se]": (34, 0, 0),
+    "[Se+]": (34, 1, 0),
+    "[Se-]": (34, -1, 0),
+    "[SeH]": (34, 0, 1),
+    "[SeH2]": (34, 0, 2),
+    "[Br]": (35, 0, 0),
+    "[Br++]": (35, 2, 0),
+    "[Br-]": (35, -1, 0),
+    "[I]": (53, 0, 0),
+    "[I+]": (53, 1, 0),
+    "[IH2]": (53, 0, 2),
+    "[I++]": (53, 2, 0),
+    "[IH]": (53, 0, 1),
+    "[I+++]": (53, 3, 0),
+    "[I-]": (53, -1, 0)
+}
+ATOMFEAT2TOKEN = {val: key for key, val in TOKEN2ATOMFEAT.items()}
+
 TOKENS_DICT_MOL = {}
 TOKENS_DICT_FLATTEN_MOL = {}
 TOKENS_DICT_SEQ_MOL = {}
@@ -32,14 +103,25 @@ def map_diff(token):
 def map_diff_ni(token):
     return (token[0], token[1]-token[0])
 
-NODE_TOKENS_DICT = {'qm9': ['F', 'O', 'N', 'C'], 'zinc': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S'],
-                    'moses': ['F', 'O', 'N', 'C', 'Cl', 'Br', 'S'], 'guacamol': ['F', 'O', 'N', 'C', 'P', 'I', 'Cl', 'Br', 'S', 'B', 'Se', 'Si']}
+# TODO: Fix node_tokens_dict for qm9, zinc, and guacamol
+NODE_TOKENS_DICT = {'qm9': ['[O]', '[NH+]', '[N]', '[C-]', '[F]', '[NH]', 
+                            '[NH3+]', '[N+]', '[C]', '[N-]', '[CH-]', '[NH2+]', '[O-]'], 
+                    'zinc': ['[N+]', '[NH3+]', '[SH+]', '[I]', '[O-]', '[NH]', 
+                             '[S-]', '[CH2-]', '[NH2+]', '[PH2]', '[CH-]', '[S+]', 
+                             '[OH+]', '[S]', '[P+]', '[O]', '[F]', '[C]', '[NH+]', 
+                             '[NH-]', '[Cl]', '[N]', '[Br]', '[CH]', '[N-]', '[P]', 
+                             '[PH+]', '[O+]', '[PH]'],
+                    'moses': ['[CH]', '[CH2]', '[CH-]', '[CH2-]', '[C]', '[N-]', '[NH-]', '[N]', 
+                              '[NH]', '[N+]', '[NH+]', '[NH2+]', '[NH3+]', '[O-]', '[O]', '[O+]', 
+                              '[OH+]', '[F]', '[P]', '[PH]', '[PH2]', '[P+]', '[PH+]', '[S-]', '[S]', 
+                              '[S+]', '[SH]', '[SH+]', '[Cl]', '[Br]', '[I]'], 
+                    'guacamol': ['[F]', '[O]', '[N]', '[C]', '[P]', '[I]', '[Cl]', '[Br]', '[S]', 
+                                 '[B]', '[Se]', '[Si]']}
 bond_tokens = [5,6,7,8]
 
-NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17, 'B': 18, 'Se': 19, 'Si': 20}
-TYPE_NODE_DICT = {str(key): value for value, key in NODE_TYPE_DICT.items()}
+# NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17, 'B': 18, 'Se': 19, 'Si': 20}
+NODE_TYPE_DICT = {key: idx+9 for idx, key in enumerate(TOKEN2ATOMFEAT.keys())}
 BOND_TYPE_DICT = {1: 5, 2: 6, 3: 7, 1.5: 8}
-TYPE_BOND_DICT = {key: value for value, key in NODE_TYPE_DICT.items()}
 
 for dataset in ['qm9', 'zinc', 'moses', 'guacamol']:
     
@@ -52,12 +134,14 @@ for dataset in ['qm9', 'zinc', 'moses', 'guacamol']:
     # TOKENS_DICT_MOL[dataset] = tokens
     
     tokens_seq = standard_tokens.copy()
-    tokens_seq.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens_seq.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_seq.extend(NODE_TOKENS_DICT[dataset])
     tokens_seq.extend(bond_tokens)
     TOKENS_DICT_SEQ_MOL[dataset] = tokens_seq
     
     tokens_flat = standard_tokens.copy()
-    tokens_flat.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens_flat.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_flat.extend(NODE_TOKENS_DICT[dataset])
     tokens_flat.extend(bond_tokens)
     # element of adjacency matrix 0
     tokens_flat.append(0)
@@ -65,6 +149,7 @@ for dataset in ['qm9', 'zinc', 'moses', 'guacamol']:
     
     tokens_seq_merge = standard_tokens.copy()
     node_types = [NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset]]
+    # tokens_seq_merge.extend(NODE_TOKENS_DICT[dataset])
     edge_types = BOND_TYPE_DICT.values()
     seq_tokens = np.arange(1, bw_dict[dataset]+1)
     node_tokens = [(0, node_type) for node_type in node_types]
@@ -75,20 +160,23 @@ for dataset in ['qm9', 'zinc', 'moses', 'guacamol']:
     
     tokens_list_node_edge = standard_tokens.copy()
     tokens_list_node_edge.extend([(num, num-b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
-    tokens_list_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens_list_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_node_edge.extend(NODE_TOKENS_DICT[dataset])
     tokens_list_node_edge.extend(bond_tokens)
     TOKENS_DICT_MOL[dataset] = tokens_list_node_edge
     
     tokens_list_diff_node_edge = standard_tokens.copy()
     tokens_list_diff_node_edge.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(1,node_num) if (num-b >= 0)])
-    tokens_list_diff_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens_list_diff_node_edge.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_diff_node_edge.extend(NODE_TOKENS_DICT[dataset])
     tokens_list_diff_node_edge.extend(bond_tokens)
     TOKENS_DICT_DIFF_MOL[dataset] = tokens_list_diff_node_edge
     
     tokens_list_diff_node_edge_ni = standard_tokens.copy()
     tokens_list_diff_node_edge_ni.extend([(num, b) for b in np.arange(0,bw+1) for num in np.arange(0,2)])
     tokens_list_diff_node_edge_ni.remove((0,0))
-    tokens_list_diff_node_edge_ni.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    # tokens_list_diff_node_edge_ni.extend(NODE_TYPE_DICT[node_type] for node_type in NODE_TOKENS_DICT[dataset])
+    tokens_list_diff_node_edge_ni.extend(NODE_TOKENS_DICT[dataset])
     tokens_list_diff_node_edge_ni.extend(bond_tokens)
     TOKENS_DICT_DIFF_NI_MOL[dataset] = tokens_list_diff_node_edge_ni
     
@@ -209,7 +297,7 @@ def tokenize_mol(adj, adj_list, node_attr, edge_attr, data_name, string_type):
             prev_src_node = src_node
             cur_tar_node = tar_node
     tokens.append("[eos]")
-
+    # return tokens
     return [TOKEN2ID[token] for token in tokens]
 
 
@@ -241,3 +329,4 @@ def untokenize_mol(sequence, data_name, string_type, is_token, vocab_size=200):
         return "", org_tokens
     
     return tokens, org_tokens
+

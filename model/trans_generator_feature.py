@@ -16,7 +16,6 @@ from model.trans_generator import TokenEmbedding
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbeddingFeature(nn.Module):
-    # TODO: token embedding eimension
     def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
         super(TokenEmbeddingFeature, self).__init__()
         # self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)

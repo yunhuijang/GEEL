@@ -91,8 +91,9 @@ class LSTMGeneratorFeatureList(nn.Module):
         '''
         TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
         node_type_list = NODE_TOKENS_DICT[self.data_name]
-        node_types = [NODE_TYPE_DICT[node_type] for node_type in node_type_list]
-        node_type_indices = [TOKEN2ID[node_type] for node_type in node_types]
+        node_type_indices = [TOKEN2ID[node_type] for node_type in node_type_list]
+        # node_types = [NODE_TYPE_DICT[node_type] for node_type in node_type_list]
+        # node_type_indices = [TOKEN2ID[node_type] for node_type in node_types]
         edge_types = BOND_TYPE_DICT.values()
         edge_type_indices = [TOKEN2ID[bond_type] for bond_type in edge_types]
         edge_indices = [value for key, value in TOKEN2ID.items() if type(key) is tuple]

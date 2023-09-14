@@ -367,7 +367,10 @@ def compute_nspdk_mmd(samples1, samples2, metric, is_hist=True, n_jobs=None):
         for graph in X:
             edge_attr = nx.get_edge_attributes(graph, 'edge_attr')
             nx.set_edge_attributes(graph, edge_attr, 'label')
+            # node_attr = nx.get_node_attributes(graph, 'x')
             node_attr = nx.get_node_attributes(graph, 'x')
+            if len(node_attr) < 1:
+                node_attr = nx.get_node_attributes(graph, 'token')
             nx.set_node_attributes(graph, node_attr, 'label')
         X = vectorize(X, complexity=4, discrete=True)
         
@@ -459,7 +462,7 @@ def evaluate_molecules(weighted_adjs, xs, data_name, test_graphs, device, test_s
         table.add_data(s)
     wandb.log({'SMILES': table})
     save_dir = f'{data_name}/{wandb.run.id}'
-    scores_nspdk = eval_graph_list(test_graphs, mols_to_nx(mols), methods=['nspdk'])['nspdk']
+    scores_nspdk = eval_graph_list(test_graphs, mols_to_nx(mols)[0], methods=['nspdk'])['nspdk']
     with open(f'samples/smiles/{save_dir}.txt', 'w') as f:
         for smiles in gen_smiles:
             f.write(f'{smiles}\n')

@@ -6,7 +6,7 @@ import numpy as np
 import re
 
 from data.data_utils import seq_to_adj, seq_rel_to_adj, seq_to_adj_list, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
-from data.mol_tokens import NODE_TYPE_DICT, BOND_TYPE_DICT
+from data.mol_tokens import NODE_TYPE_DICT, BOND_TYPE_DICT, ATOMFEAT2TOKEN, TOKEN2ATOMFEAT
 
 
 DATA_DIR = "resource"
@@ -30,21 +30,26 @@ def add_self_loop(graph):
 
 def mols_to_nx(mols):
     nx_graphs = []
+    token_set = set()
     for mol in tqdm(mols, 'Molecules to graph'):
         if not mol:
             continue
         G = nx.Graph()
 
         for atom in mol.GetAtoms():
-            G.add_node(atom.GetIdx(),
-                       label=NODE_TYPE_DICT[atom.GetSymbol()])
+            # G.add_node(atom.GetIdx(),
+                    #    label=NODE_TYPE_DICT[atom.GetSymbol()])
+            token = get_atom_token(atom)
+            token_set.add(token)
+            G.add_node(atom.GetIdx(), token=token)
+        
         for bond in mol.GetBonds():
             G.add_edge(bond.GetBeginAtomIdx(),
                        bond.GetEndAtomIdx(),
                        label=BOND_TYPE_DICT[bond.GetBondTypeAsDouble()])
         nx_graphs.append(G)
         
-    return nx_graphs
+    return nx_graphs, token_set
 
 def check_adj_validity_mol(adj):
     if adj.size == 0:
@@ -65,10 +70,50 @@ def check_adj_validity_mol(adj):
     else:
         return None
 
-ATOM_VALENCY = {12: 4, 11: 3, 10: 2, 9: 1, 13: 3, 17: 2, 15: 1, 16: 1, 14: 1, 18:3, 19:2, 20:4}
+# ATOM_VALENCY = {12: 4, 11: 3, 10: 2, 9: 1, 13: 3, 17: 2, 15: 1, 16: 1, 14: 1, 18:3, 19:2, 20:4}
+
+# ATOM_VALENCY = {
+#     "[C]": 4,
+#     "[CH]": 3,
+#     "[CH2]": 2,
+#     "[CH2-]": 1,
+#     "[CH-]": 2,
+#     "[N]": 3,
+#     "[N-]": 2,
+#     "[N+]": 4,
+#     "[NH]": 2,
+#     "[NH+]": 3,
+#     "[NH-]": 1,
+#     "[NH2+]": 2,
+#     "[NH3+]": 1,
+#     "[O]": 2,
+#     "[O-]": 1,
+#     "[O+]": 3,
+#     "[OH+]": 2,
+#     "[F]": 1,
+#     "[P]": 5,
+#     "[P+]": 4,
+#     "[PH]": 4,
+#     "[PH2]": 3,
+#     "[PH+]": 3,
+#     "[S]": 6,
+#     "[SH]": 5,
+#     "[SH+]": 2,
+#     "[S-]": 1,
+#     "[S+]": 3,
+#     "[Cl]": 1,
+#     "[Br]": 1,
+#     "[I]": 1,
+#     "[B]": 3,
+#     "[Se]": 6,
+#     "[Si]": 4,
+# }
+
+ATOM_VALENCY = {'C': 4, 'N': 3, 'O': 2, 'F': 1, 'P': 3, 'S': 2, 'Cl': 1, 'Br': 1, 'I': 1, 'B': 3, 'Se': 6, 'Si': 4}
+
 bond_decoder = {5: Chem.rdchem.BondType.SINGLE, 6: Chem.rdchem.BondType.DOUBLE, 
                 7: Chem.rdchem.BondType.TRIPLE, 8: Chem.rdchem.BondType.AROMATIC}
-NODE_TYPE_TO_ATOM_NUM = {9: 9, 10: 8, 11: 7, 12: 6, 13: 15, 14: 53, 15: 17, 16: 35, 17: 16}
+NODE_TYPE_TO_ATOM_NUM = {9: 9, 10: 8, 11: 7, 12: 6, 13: 15, 14: 53, 15: 17, 16: 35, 17: 16, 18:5, 19:34, 20:14}
 
 def generate_mol(x, adj):
     mol = construct_mol(x, adj)
@@ -79,7 +124,14 @@ def generate_mol(x, adj):
 def construct_mol(x, adj):
     mol = Chem.RWMol()
     for atom in x:
-        mol.AddAtom(Chem.Atom(NODE_TYPE_TO_ATOM_NUM[atom]))
+        # mol.AddAtom(Chem.Atom(NODE_TYPE_TO_ATOM_NUM[atom]))
+        atomic_num, formal_charge, num_explicit_Hs = TOKEN2ATOMFEAT[atom]
+        atom = Chem.Atom(atomic_num)
+        atom.SetFormalCharge(formal_charge)
+        atom.SetNumExplicitHs(num_explicit_Hs)
+        if num_explicit_Hs > 0:
+            atom.SetNoImplicit(True)
+        mol.AddAtom(atom)
     
     for start, end in zip(*np.nonzero(adj)):
         if start > end:
@@ -92,7 +144,9 @@ def construct_mol(x, adj):
                 idx = atomid_valence[0]
                 v = atomid_valence[1]
                 an = mol.GetAtomWithIdx(idx).GetAtomicNum()
-                if an in (10, 11, 17) and (v - ATOM_VALENCY[an]) == 1:
+                an_symbol = mol.GetAtomWithIdx(idx).GetSymbol()
+                # if an in (10, 11, 17) and (v - ATOM_VALENCY[an]) == 1:
+                if an in (7, 8, 16) and (v - ATOM_VALENCY[an_symbol]) == 1:
                     mol.GetAtomWithIdx(idx).SetFormalCharge(1)
     return mol
 
@@ -107,6 +161,7 @@ def check_valency(mol):
         e_sub = e[p:]
         atomid_valence = list(map(int, re.findall(r'\d+', e_sub)))
         return False, atomid_valence
+
 
 # codes adapted from https://github.com/cvignac/DiGress
 def correct_mol(m):
@@ -252,7 +307,7 @@ def map_featured_samples_to_adjs(samples, samples_feature, string_type):
         edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
         edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
     else:
-        xs = [[elem for elem in feature_seq if elem in NODE_TYPE_TO_ATOM_NUM.keys()] for feature_seq in feature_seqs]
+        xs = [[elem for elem in feature_seq if elem in TOKEN2ATOMFEAT.keys()] for feature_seq in feature_seqs]
         if string_type == 'adj_list_diff_ni':
             edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
         else:
@@ -313,3 +368,6 @@ def featured_adj_list_to_adj(adj_list):
         adj[e][n] = f
 
     return np.array(adj)
+
+def get_atom_token(atom):
+    return ATOMFEAT2TOKEN[(atom.GetAtomicNum(), atom.GetFormalCharge(), atom.GetNumExplicitHs())]

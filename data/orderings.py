@@ -140,8 +140,8 @@ class OrderedGraph:
     def to_mol_data(self):
         A = nx.to_scipy_sparse_matrix(self.graph, nodelist=self.ordering)
         edge_index = from_scipy_sparse_matrix(A)[0]
-        # edge_index = torch.cat((edge_index[0][edge_index[0] < edge_index[1]].unsqueeze(0), edge_index[1][edge_index[0] < edge_index[1]].unsqueeze(0)), dim=0)
-        x = np.array([self.graph.nodes[i]['label'] for i in self.ordering])
+        # x = np.array([self.graph.nodes[i]['label'] for i in self.ordering])
+        x = np.array([self.graph.nodes[i]['token'] for i in self.ordering])
         order_dict = {i:j for i, j in zip(range(len(self.ordering)), self.ordering)}
         source_node_list = [order_dict[ei] for ei in edge_index[0].tolist()]
         target_node_list = [order_dict[ei] for ei in edge_index[1].tolist()]

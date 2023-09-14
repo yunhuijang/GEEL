@@ -404,8 +404,8 @@ def mnist_to_graphs():
         
     return graphs
 
-def get_max_len(data_name):
-    graphs_list = load_graphs(data_name)
+def get_max_len(graphs_list):
+    # graphs_list = load_graphs(data_name)
     max_len_edge = 0
     max_len_node = 0
     min_len_node = 1000

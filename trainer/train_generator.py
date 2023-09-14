@@ -59,7 +59,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'zinc': ZINCDataset,
             'moses': MosesDataset
         }.get(hparams.dataset_name)
-        self.num_nodes = get_max_len(hparams.dataset_name)[1]
+        # self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:
             _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
             
@@ -81,6 +81,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
         else:
             self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, hparams.replicate)
+            graphs_list = [self.test_graphs, self.val_graphs, self.test_graphs]
+            self.num_nodes = get_max_len(graphs_list)[1]
             self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                         for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
             self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
