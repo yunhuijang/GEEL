@@ -71,9 +71,11 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     train_graphs = torch.load(file_path)
                 else:
                     train_graphs = load_graphs(hparams.dataset_name, self.order, epoch, is_train=True)
+                self.train_graphs = train_graphs
                 train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size)
                 train_datasets.append(train_dataset)
             self.train_dataset = train_datasets
+            self.num_nodes = get_max_len([self.train_graphs, self.val_graphs, self.test_graphs])[1]
             train_bw = max([dataset.bw for dataset in train_datasets])
             self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
                                                                     for graphs in [self.val_graphs, self.test_graphs]]

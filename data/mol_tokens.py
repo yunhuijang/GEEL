@@ -16,10 +16,9 @@ standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 dataset_list = ['qm9', 'zinc', 'moses', 'guacamol']
 # maximum number of nodes of each dataset (train, test, val)
 
-node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 31, 'guacamol': 25}
-bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 10}
+node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 31, 'guacamol': 88}
+bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 12}
 
-# TODO: Fix TOKEN2ATOMFEAT with guacamol data
 TOKEN2ATOMFEAT = {
     "[B]": (5, 0, 0),
     "[B-]": (5, -1, 0),
@@ -63,6 +62,7 @@ TOKEN2ATOMFEAT = {
     "[PH2+]": (15, 1, 2),
     "[P-]": (15, -1, 0),
     "[S-]": (16, -1, 0),
+    "[SH-]": (16, -1, 1),
     "[S]": (16, 0, 0),
     "[S+]": (16, 1, 0),
     "[SH]": (16, 0, 1),
@@ -115,8 +115,11 @@ NODE_TOKENS_DICT = {'qm9': ['[O]', '[NH+]', '[N]', '[C-]', '[F]', '[NH]',
                               '[NH]', '[N+]', '[NH+]', '[NH2+]', '[NH3+]', '[O-]', '[O]', '[O+]', 
                               '[OH+]', '[F]', '[P]', '[PH]', '[PH2]', '[P+]', '[PH+]', '[S-]', '[S]', 
                               '[S+]', '[SH]', '[SH+]', '[Cl]', '[Br]', '[I]'], 
-                    'guacamol': ['[F]', '[O]', '[N]', '[C]', '[P]', '[I]', '[Cl]', '[Br]', '[S]', 
-                                 '[B]', '[Se]', '[Si]']}
+                    'guacamol': ['[S-]', '[Si]', '[BH3-]', '[N+]', '[PH]', '[SeH]', '[BH2-]', '[IH2]', 
+                                 '[I-]', '[B-]', '[NH]', '[N-]', '[P+]', '[Si+]', '[O-]', '[SH]', '[Se]', 
+                                 '[Se+]', '[Cl]', '[C-]', '[I+]', '[SH+]', '[NH+]', '[C]', '[NH-]', '[CH-]', 
+                                 '[NH3+]', '[NH2+]', '[OH+]', '[O+]', '[N]', '[C+]', '[S]', '[I]', '[BH-]', 
+                                 '[B]', '[P]', '[SH-]', '[S+]', '[O]', '[F]', '[Br]', '[SiH2]']}
 bond_tokens = [5,6,7,8]
 
 # NODE_TYPE_DICT = {'F': 9, 'O': 10, 'N': 11, 'C': 12, 'P': 13, 'I': 14, 'Cl': 15, 'Br': 16, 'S': 17, 'B': 18, 'Se': 19, 'Si': 20}
