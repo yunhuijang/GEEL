@@ -18,7 +18,7 @@ import json
 import wandb
 from moses.metrics.metrics import get_all_metrics
 
-from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, TOKENS_SPM_DICT, map_tokens
+from data.tokens import map_tokens
 from data.mol_tokens import TOKENS_DICT_SEQ_MOL, TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL
 from data.data_utils import load_graphs
 from data.mol_utils import mols_to_smiles, mols_to_nx, map_featured_samples_to_adjs, adj_x_to_graph_mol
@@ -47,11 +47,11 @@ def compute_sequence_accuracy(logits, batched_sequence_data, ignore_index=0):
 
     return elem_acc, sequence_acc
 
-def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, is_token=False, vocab_size=200):
+def compute_sequence_cross_entropy(logits, batched_sequence_data, data_name, string_type, order, is_token=False, vocab_size=200):
     logits = logits[:,:-1]
     targets = batched_sequence_data[:,1:]
     weight_vector = [0,0]
-    tokens = map_tokens(data_name, string_type, vocab_size, is_token)        
+    tokens = map_tokens(data_name, string_type, vocab_size, order, is_token)        
     weight_vector.extend([1/(len(tokens)-2) for _ in range(len(tokens)-2)])
     loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1),
                         weight=torch.FloatTensor(weight_vector).to(logits.device))
@@ -474,3 +474,9 @@ def evaluate_molecules(weighted_adjs, xs, data_name, test_graphs, device, test_s
     metrics_dict['NSPDK'] = scores_nspdk
     metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
     wandb.log(metrics_dict)
+    
+def check_train_mmd(data_name):
+    methods, kernels = load_eval_settings('')
+    train_graphs, _, test_graphs = load_graphs(data_name)
+    mmd_results = eval_graph_list(test_graphs, train_graphs[:len(test_graphs)], methods=methods, kernels=kernels)
+    return mmd_results

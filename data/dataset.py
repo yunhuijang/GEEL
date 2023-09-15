@@ -15,19 +15,20 @@ class EgoDataset(Dataset):
     data_name = "GDSS_ego"
     raw_dir = f"{DATA_DIR}/GDSS_ego"
     is_mol = False
-    def __init__(self, graphs, string_type, is_token, vocab_size=200):
+    def __init__(self, graphs, string_type, is_token, vocab_size=200, order='C-M'):
         self.adjs = [nx.adjacency_matrix(graph) for graph in graphs]
         self.adj_list = [adj_to_adj_list(adj) for adj in self.adjs]
         self.string_type = string_type
         self.bw = max([bw_from_adj(adj.toarray()) for adj in self.adjs])
         self.is_token = is_token
         self.vocab_size = vocab_size
+        self.order = order
 
     def __len__(self):
         return len(self.adj_list)
     
     def __getitem__(self, idx: int):
-        return torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type, self.is_token, self.vocab_size))
+        return torch.LongTensor(tokenize(self.adjs[idx], self.adj_list[idx], self.data_name, self.string_type, self.is_token, self.vocab_size, self.order))
     
 class ComDataset(EgoDataset):
     data_name = 'GDSS_com'

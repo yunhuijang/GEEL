@@ -100,7 +100,7 @@ class TransGeneratorFeatureLightningModule(BaseGeneratorLightningModule):
         loss, statistics = 0.0, dict()
         logits = self.model(batched_data)
         logits_feature = self.model_feature(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data[0], self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
+        loss = compute_sequence_cross_entropy(logits, batched_data[0], self.hparams.dataset_name, self.hparams.string_type, self.hparams.order, self.hparams.is_token, self.hparams.vocab_size)
         loss_feature = compute_sequence_cross_entropy_feature(logits_feature, batched_data[1], self.hparams.dataset_name, self.hparams.string_type)
         total_loss = loss + loss_feature
         statistics["loss/total"] = total_loss

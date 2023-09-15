@@ -13,14 +13,15 @@ from data.mol_tokens import token_to_id_mol,  NODE_TOKENS_DICT, NODE_TYPE_DICT, 
 
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size, data_name, string_type, num_nodes):
+    def __init__(self, vocab_size, emb_size, data_name, string_type, num_nodes, order):
         super(TokenEmbedding, self).__init__()
         self.emb_size = emb_size
         self.data_name = data_name
         self.string_type = string_type
         self.num_nodes = num_nodes
+        self.order = order
         
-        self.tokens = map_tokens(self.data_name, self.string_type, None)
+        self.tokens = map_tokens(self.data_name, self.string_type, None, self.order)
         TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
         self.edge_indices = [value for key, value in TOKEN2ID.items() if (type(key) is tuple)]
         self.edge_indices_ni = [value for key, value in TOKEN2ID.items() if (type(key) is tuple) and (key[0] == 1)]
@@ -50,7 +51,7 @@ class TokenEmbedding(nn.Module):
 # model with that generates feature + adj list (masking in sequence)
 class LSTMGeneratorFeatureList(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False, order='C-M'
     ):
         super(LSTMGeneratorFeatureList, self).__init__()
         self.emb_size = emb_size
@@ -65,13 +66,14 @@ class LSTMGeneratorFeatureList(nn.Module):
         self.bw = bw
         self.num_nodes = num_nodes
         self.is_simple_token = is_simple_token
+        self.order = order
         
-        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size, self.is_token)
+        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size, self.order, self.is_token)
 
         self.vocab_size = self.output_size = len(self.tokens)
 
         self.embedding_layer = nn.Embedding(self.vocab_size, self.emb_size)
-        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.data_name, self.string_type, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.data_name, self.string_type, self.num_nodes, self.order)
         self.lstm_layer = nn.LSTM(self.emb_size, self.emb_size,  
                                 dropout=self.dropout, batch_first=True, num_layers=self.num_layers)
         self.linear_layer = nn.Linear(self.emb_size, self.output_size)

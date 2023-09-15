@@ -41,7 +41,8 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
             bw=self.bw,
             num_nodes=self.num_nodes,
             learn_pos=hparams.learn_pos,
-            is_simple_token=hparams.is_simple_token
+            is_simple_token=hparams.is_simple_token,
+            order=hparams.order
         )
         
     ### 
@@ -72,20 +73,20 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
             num_workers=self.hparams.num_workers,
         )
         
-    def shared_step(self, batched_data):
-        loss, statistics = 0.0, dict()
-        logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
-        statistics["loss/total"] = loss
-        # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
+    # def shared_step(self, batched_data):
+    #     loss, statistics = 0.0, dict()
+    #     logits = self.model(batched_data)
+    #     loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.order, self.hparams.is_token, self.hparams.vocab_size)
+    #     statistics["loss/total"] = loss
+    #     # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
-        return loss, statistics
+    #     return loss, statistics
 
     
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="moses")
+        parser.add_argument("--dataset_name", type=str, default="qm9")
         parser.add_argument("--batch_size", type=int, default=1024)
         parser.add_argument("--num_workers", type=int, default=0)
 
@@ -96,7 +97,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dropout", type=float, default=0.1)
         parser.add_argument("--lr", type=float, default=0.0001)
         
-        parser.add_argument("--check_sample_every_n_epoch", type=int, default=10)
+        parser.add_argument("--check_sample_every_n_epoch", type=int, default=50)
         parser.add_argument("--num_samples", type=int, default=100)
         parser.add_argument("--sample_batch_size", type=int, default=100)
         parser.add_argument("--max_epochs", type=int, default=2000)
@@ -104,7 +105,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         
         parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='lstm')
-        parser.add_argument("--max_len", type=int, default=45)
+        parser.add_argument("--max_len", type=int, default=116)
         parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
         
         

@@ -11,7 +11,7 @@ import os
 import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
-from model.trans_generator import TransGenerator
+# from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
@@ -72,12 +72,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 else:
                     train_graphs = load_graphs(hparams.dataset_name, self.order, epoch, is_train=True)
                 self.train_graphs = train_graphs
-                train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size)
+                train_dataset = dataset_cls(train_graphs, self.string_type, self.is_token, self.vocab_size, self.order)
                 train_datasets.append(train_dataset)
             self.train_dataset = train_datasets
             self.num_nodes = get_max_len([self.train_graphs, self.val_graphs, self.test_graphs])[1]
             train_bw = max([dataset.bw for dataset in train_datasets])
-            self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+            self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size, self.order)
                                                                     for graphs in [self.val_graphs, self.test_graphs]]
             self.bw = max(train_bw, self.val_dataset.bw, self.test_dataset.bw)
             
@@ -85,13 +85,9 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             self.train_graphs, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, hparams.replicate)
             graphs_list = [self.test_graphs, self.val_graphs, self.test_graphs]
             self.num_nodes = get_max_len(graphs_list)[1]
-            self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size)
+            self.train_dataset, self.val_dataset, self.test_dataset = [dataset_cls(graphs, self.string_type, self.is_token, self.vocab_size, self.order)
                                                                         for graphs in [self.train_graphs, self.val_graphs, self.test_graphs]]
             self.bw = max(self.train_dataset.bw, self.val_dataset.bw, self.test_dataset.bw)
-        # if self.dataset_name == 'moses':
-        #     print(f'num node: {self.num_nodes}')
-        #     print(f'bw: {self.bw}')
-        #     assert False
         
         if self.dataset_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             with open(f'{DATA_DIR}/{hparams.dataset_name}/{hparams.dataset_name}' + f'_smiles_train.txt', 'r') as f:
@@ -103,12 +99,12 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             
             
         
-    def setup_model(self, hparams):
-        self.model = TransGenerator(
-            emb_size=hparams.emb_size,
-            dropout=hparams.dropout,
-            dataset=hparams.dataset_name
-        )
+    # def setup_model(self, hparams):
+    #     self.model = TransGenerator(
+    #         emb_size=hparams.emb_size,
+    #         dropout=hparams.dropout,
+    #         dataset=hparams.dataset_name
+    #     )
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
@@ -121,11 +117,10 @@ class BaseGeneratorLightningModule(pl.LightningModule):
     ### Main steps
     def shared_step(self, batched_data):
         loss, statistics = 0.0, dict()
-        # decoding
         logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data)
+        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.order, self.hparams.is_token, self.hparams.vocab_size)
         statistics["loss/total"] = loss
-        statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
+        # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
         return loss, statistics
 
@@ -205,8 +200,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
                 org_strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             else:
-                strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
-                org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
+                strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.order, self.vocab_size)[0] for sequence in sequences.tolist()]
+                org_strings = [untokenize(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.order, self.vocab_size)[1] for sequence in sequences.tolist()]
             string_list.extend(strings)
             org_string_list.extend(org_strings)
             

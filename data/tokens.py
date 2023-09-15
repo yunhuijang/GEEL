@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from itertools import product
+import json
 import sentencepiece as spm
 from collections import defaultdict
 
@@ -19,11 +19,11 @@ standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 # TODO: fix moses / guacamol node_num and bw
 
 dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 
-                'proteins', 'lobster', 'point', 'ego', 'community', 'qm9', 'zinc', 'moses', 'guacamol']
+                'proteins', 'lobster', 'point', 'ego', 'qm9', 'zinc', 'moses', 'guacamol']
 # dataset_list = ['GDSS_ego']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 159, 9, 38, 31, 88]
-bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 130, 5, 10, 12, 12]
+node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 9, 38, 31, 88]
+bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 5, 10, 12, 12]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
@@ -38,6 +38,19 @@ def map_diff(token):
 
 def map_diff_ni(token):
     return (token[0], token[1]-token[0])
+
+def map_diff_ni_tokens(dataset, order):
+    
+    with open("resource/graph_info.json", "r") as json_file:
+        json_data = json.load(json_file)
+    
+    graph_info = json_data[dataset]
+    bw = graph_info['bw'][order]
+    
+    diff_ni_tokens = standard_tokens.copy()
+    diff_ni_tokens.extend([(num, b) for b in np.arange(0,bw+1) for num in np.arange(0,2)])
+    
+    return diff_ni_tokens
 
 # map sequential representation tokens
 for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
@@ -159,7 +172,7 @@ TOKENS_KEY_DICT_SPM = {key: token_list_to_dict(value['tokens']) for key, value i
 TOKENS_KEY_DICT_DIFF_NI = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF_NI.items()}
 TOKENS_KEY_DICT_DIFF_NI_REL = {key: token_list_to_dict(value) for key, value in TOKENS_DICT_DIFF_NI_REL.items()}
 
-def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
+def token_to_id(data_name, string_type, is_token=False, vocab_size=200, order='C-M'):
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         return TOKENS_KEY_DICT_SPM[f'{data_name}_{string_type}_{vocab_size}']
     elif string_type == 'adj_list':
@@ -171,7 +184,10 @@ def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
     elif string_type in ['adj_seq', 'adj_seq_rel']:
         return TOKENS_KEY_DICT_SEQ[data_name]
     elif string_type in ['adj_list_diff_ni']:
-        return TOKENS_KEY_DICT_DIFF_NI[data_name]
+        # TODO: Fix here
+        tokens = map_tokens(data_name, string_type, 0, order)
+        return token_list_to_dict(tokens)
+        # return TOKENS_KEY_DICT_DIFF_NI[data_name]
     elif string_type == 'adj_list_diff_ni_rel':
         return TOKENS_KEY_DICT_DIFF_NI_REL[data_name]
     else:
@@ -180,8 +196,8 @@ def token_to_id(data_name, string_type, is_token=False, vocab_size=200):
 def id_to_token(tokens):
     return {idx: tokens[idx] for idx in range(len(tokens))}
 
-def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=200):
-    TOKEN2ID = token_to_id(data_name, string_type, is_token, vocab_size)
+def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=200, order='C-M'):
+    TOKEN2ID = token_to_id(data_name, string_type, is_token, vocab_size, order)
     tokens = ["[bos]"]
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         key = f'{data_name}_{string_type}_{vocab_size}'
@@ -265,8 +281,8 @@ def tokenize(adj, adj_list, data_name, string_type, is_token=False, vocab_size=2
     return [TOKEN2ID[token] for token in tokens]
 
 
-def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
-    tokens = map_tokens(data_name, string_type, vocab_size, is_token)
+def untokenize(sequence, data_name, string_type, is_token, order, vocab_size=200):
+    tokens = map_tokens(data_name, string_type, vocab_size, order, is_token)
         
     ID2TOKEN = id_to_token(tokens)
     tokens = [ID2TOKEN[id_] for id_ in sequence]
@@ -283,7 +299,7 @@ def untokenize(sequence, data_name, string_type, is_token, vocab_size=200):
     
     return tokens, org_tokens
 
-def map_tokens(data_name, string_type, vocab_size, is_token=False):
+def map_tokens(data_name, string_type, vocab_size, order, is_token=False):
     if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
         tokens = TOKENS_SPM_DICT[f'{data_name}_{string_type}_{vocab_size}']['tokens']
     elif string_type == 'adj_list':
@@ -300,7 +316,8 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
         if data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             tokens = TOKENS_DICT_DIFF_NI_MOL[data_name]
         else:
-            tokens = TOKENS_DICT_DIFF_NI[data_name]
+            # tokens = TOKENS_DICT_DIFF_NI[data_name]
+            tokens = map_diff_ni_tokens(dataset=data_name, order=order)
     elif string_type == 'adj_list_diff_ni_rel':
         tokens = TOKENS_DICT_DIFF_NI_REL[data_name]
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
@@ -314,13 +331,13 @@ def map_tokens(data_name, string_type, vocab_size, is_token=False):
         assert False, "No token type"
     return tokens
 
-def check_reconstruction(data_name, string_type):
+def check_reconstruction(data_name, string_type, order):
     adj_list = [(1,0), (2,0), (5,2), (5,3), (6,0), (7,4)]
-    tokens = map_tokens(data_name, string_type, vocab_size=None)
+    tokens = map_tokens(data_name, string_type, vocab_size=None, order=order, is_token=False)
     sequence = tokenize(None, adj_list, data_name, string_type)
     ID2TOKEN = id_to_token(tokens)
     print([ID2TOKEN[i] for i in sequence])
-    un_tokens = untokenize(sequence, data_name, string_type, is_token=False)[0]
+    un_tokens = untokenize(sequence, data_name, string_type, is_token=False, order=order)[0]
     # TODO: change the mapping function dependent on string_type
     a = adj_list_diff_ni_to_adj_list(un_tokens)
     print(a)

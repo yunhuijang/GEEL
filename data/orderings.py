@@ -64,8 +64,9 @@ def random_DFS_order(G: nx.Graph, seed=0) -> tuple[list[int], int]:
     return order, bw
 
 
-def uniform_random_order(G: nx.Graph) -> tuple:
+def uniform_random_order(G: nx.Graph, seed) -> tuple:
     order = list(G.nodes())
+    random.seed(seed)
     random.shuffle(order)
     bw = bw_from_order(G, order)
     return order, bw
@@ -175,4 +176,5 @@ ORDER_FUNCS = {
     "C-M": random_connected_cuthill_mckee_ordering,
     "BFS": random_BFS_order,
     "DFS": random_DFS_order,
+    "random": uniform_random_order
 }

@@ -44,7 +44,8 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             bw=self.bw,
             num_nodes=self.num_nodes,
             is_token=hparams.is_token,
-            vocab_size=hparams.vocab_size
+            vocab_size=hparams.vocab_size,
+            order=hparams.order
         )
 
     ### 
@@ -75,15 +76,15 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             num_workers=self.hparams.num_workers,
         )
 
-    ### Main steps
-    def shared_step(self, batched_data):
-        loss, statistics = 0.0, dict()
-        logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
-        statistics["loss/total"] = loss
-        # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
+    # ### Main steps
+    # def shared_step(self, batched_data):
+    #     loss, statistics = 0.0, dict()
+    #     logits = self.model(batched_data)
+    #     loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
+    #     statistics["loss/total"] = loss
+    #     # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
-        return loss, statistics
+    #     return loss, statistics
 
     
     @staticmethod

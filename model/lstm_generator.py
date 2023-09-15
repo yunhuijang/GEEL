@@ -19,7 +19,7 @@ class SimpleTokenEmbedding(nn.Module):
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
+    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes, order):
         super(TokenEmbedding, self).__init__()
 
         self.num_nodes = num_nodes
@@ -28,6 +28,7 @@ class TokenEmbedding(nn.Module):
         self.learn_pos = learn_pos
         self.data_name = data_name
         self.vocab_size = vocab_size
+        self.order = order
         
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.embedding_numnode = nn.Embedding(self.num_nodes+3, emb_size)
@@ -37,7 +38,7 @@ class TokenEmbedding(nn.Module):
         self.positional_embedding = nn.Parameter(torch.randn([1, max_len+2, emb_size]))
 
         self.string_type = string_type
-        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size-3)
+        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size-3, self.order)
         self.ID2TOKEN = id_to_token(self.tokens)
         self.data_name = data_name
     
@@ -95,7 +96,7 @@ class TokenEmbedding(nn.Module):
 
 class LSTMGenerator(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False, order='C-M'
     ):
         super(LSTMGenerator, self).__init__()
         self.emb_size = emb_size
@@ -110,14 +111,15 @@ class LSTMGenerator(nn.Module):
         self.bw = bw
         self.num_nodes = num_nodes
         self.is_simple_token = is_simple_token
+        self.order = order
         
-        self.tokens = map_tokens(self.dataset, self.string_type, self.vocab_size, self.is_token)
+        self.tokens = map_tokens(self.dataset, self.string_type, self.vocab_size, self.order, self.is_token)
 
-        self.TOKEN2ID = token_to_id(self.dataset, self.string_type, self.is_token, self.vocab_size)
+        self.TOKEN2ID = token_to_id(self.dataset, self.string_type, self.is_token, self.vocab_size, self.order)
         self.vocab_size = self.output_size = len(self.tokens)
 
         self.embedding_layer = nn.Embedding(self.vocab_size, self.emb_size)
-        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.learn_pos, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.learn_pos, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes, self.order)
         self.simple_token_embedding_layer = SimpleTokenEmbedding(self.vocab_size, self.emb_size)
         self.lstm_layer = nn.LSTM(self.emb_size, self.emb_size,  
                                 dropout=self.dropout, batch_first=True, num_layers=self.num_layers)
@@ -139,10 +141,6 @@ class LSTMGenerator(nn.Module):
         '''
         sequential generation
         '''
-        # if self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-        #     TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
-        # else:
-        #     TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size)
         
         # first element need to be (1,X)
         first_indices = [value for key, value in self.TOKEN2ID.items() if (type(key) is tuple) and (key[0] == 1)]

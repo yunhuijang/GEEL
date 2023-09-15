@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-from data.tokens import TOKENS_DICT, TOKENS_DICT_DIFF, TOKENS_DICT_FLATTEN, TOKENS_DICT_SEQ, token_to_id
+from data.tokens import token_to_id, map_tokens
 from data.mol_tokens import TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL, TOKENS_DICT_SEQ_MOL, token_to_id_mol, id_to_token_mol, PAD_TOKEN, EOS_TOKEN, BOS_TOKEN, NODE_TOKENS_DICT, NODE_TYPE_DICT, BOND_TYPE_DICT
 from model.trans_generator import TokenEmbedding
 
@@ -117,18 +117,15 @@ class TransGeneratorFeature(nn.Module):
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
+        self.tokens = map_tokens(self.data_name, self.string_type, 0)
         
         if self.string_type == 'adj_list':
-            self.tokens = TOKENS_DICT[self.data_name]
             self.mol_tokens = TOKENS_DICT_MOL[self.data_name]
         elif self.string_type == 'adj_list_diff':
-            self.tokens = TOKENS_DICT_DIFF[self.data_name]
             self.mol_tokens = TOKENS_DICT_MOL[self.data_name]
         elif self.string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
-            self.tokens = TOKENS_DICT_FLATTEN[self.data_name]
             self.mol_tokens = TOKENS_DICT_FLATTEN_MOL[self.data_name]
         elif self.string_type in ['adj_seq', 'adj_seq_rel']:
-            self.tokens = TOKENS_DICT_SEQ[self.data_name]
             self.mol_tokens = TOKENS_DICT_SEQ_MOL[self.data_name]
         else:
             assert False, "No token type"

@@ -37,17 +37,18 @@ class TransGeneratorFeatureList(LSTMGeneratorFeatureList):
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
         input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
-        data_name, bw, num_nodes, is_token, vocab_size
+        data_name, bw, num_nodes, is_token, vocab_size, order
     ):
         super(TransGeneratorFeatureList, self).__init__(emb_size=emb_size, dropout=dropout, num_layers=num_layers,
                                                         string_type=string_type, dataset=data_name, vocab_size=vocab_size,
-                                                        num_nodes=num_nodes, max_len=max_len, bw=bw)
+                                                        num_nodes=num_nodes, max_len=max_len, bw=bw, order=order)
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
         self.is_token = is_token
         self.vocab_size = vocab_size
-        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size, self.is_token)
+        self.order = order
+        self.tokens = map_tokens(self.data_name, self.string_type, self.vocab_size, self.order, self.is_token)
         self.ID2TOKEN = id_to_token(self.tokens)
         
         self.learn_pos = learn_pos

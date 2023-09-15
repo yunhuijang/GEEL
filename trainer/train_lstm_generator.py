@@ -41,7 +41,8 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
             bw=self.bw,
             num_nodes=self.num_nodes,
             learn_pos=hparams.learn_pos,
-            is_simple_token=hparams.is_simple_token
+            is_simple_token=hparams.is_simple_token,
+            order=hparams.order
         )
         
     ### 
@@ -81,24 +82,24 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
             num_workers=self.hparams.num_workers,
         )
         
-    def shared_step(self, batched_data):
-        loss, statistics = 0.0, dict()
-        logits = self.model(batched_data)
-        loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.is_token, self.hparams.vocab_size)
-        statistics["loss/total"] = loss
-        # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
+    # def shared_step(self, batched_data):
+    #     loss, statistics = 0.0, dict()
+    #     logits = self.model(batched_data)
+    #     loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.order, self.hparams.is_token, self.hparams.vocab_size)
+    #     statistics["loss/total"] = loss
+    #     # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
-        return loss, statistics
+    #     return loss, statistics
 
     
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="lobster")
+        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
         parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=0)
 
-        parser.add_argument("--order", type=str, default="C-M")
+        parser.add_argument("--order", type=str, default="random")
         parser.add_argument("--replicate", type=int, default=0)
         #
         parser.add_argument("--emb_size", type=int, default=512)
