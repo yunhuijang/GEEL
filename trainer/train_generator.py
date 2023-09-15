@@ -12,7 +12,7 @@ import networkx as nx
 #from moses.metrics.metrics import get_all_metrics
 
 # from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset, GuacamolDataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
@@ -57,7 +57,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'community': ComLargeDataset,
             'qm9': QM9Dataset,
             'zinc': ZINCDataset,
-            'moses': MosesDataset
+            'moses': MosesDataset,
+            'guacamol': GuacamolDataset
         }.get(hparams.dataset_name)
         # self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:

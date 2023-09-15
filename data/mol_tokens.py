@@ -17,7 +17,7 @@ dataset_list = ['qm9', 'zinc', 'moses', 'guacamol']
 # maximum number of nodes of each dataset (train, test, val)
 
 node_num_dict = {'qm9': 9, 'zinc': 38, 'moses': 31, 'guacamol': 88}
-bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 12}
+bw_dict = {'qm9': 5, 'zinc': 10, 'moses': 12, 'guacamol': 15}
 
 TOKEN2ATOMFEAT = {
     "[B]": (5, 0, 0),
