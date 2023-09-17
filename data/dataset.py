@@ -90,7 +90,7 @@ class QM9Dataset(EgoDataset):
     raw_dir = f"{DATA_DIR}/qm9"
     is_mol = True
     
-    def __init__(self, graphs, string_type, is_token, vocab_size=200):
+    def __init__(self, graphs, string_type, is_token, vocab_size=200, order='C-M'):
         self.graphs = graphs
         self.adjs = [nx.adjacency_matrix(graph) for graph in graphs]
         self.adj_list = [adj_to_adj_list(adj) for adj in self.adjs]

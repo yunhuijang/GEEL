@@ -60,9 +60,9 @@ class TransGeneratorFeatureList(LSTMGeneratorFeatureList):
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.data_name, self.string_type, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.data_name, self.string_type, self.num_nodes, self.order)
         self.input_dropout = nn.Dropout(input_dropout)
-        
+            
         #
         self.distance_embedding_layer = nn.Embedding(max_len + 1, nhead)
 

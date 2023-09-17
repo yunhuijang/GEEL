@@ -151,7 +151,13 @@ if __name__ == "__main__":
         ckpt_path = f"resource/checkpoint/{hparams.dataset_name}/{hparams.run_id}/last"
         file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
         ckpt_path += f'/{file_list[0]}'
-        ckpt = torch.load(ckpt_path)
+        try:
+            ckpt = torch.load(ckpt_path)
+        except:
+            ckpt_path = f"resource/checkpoint/{hparams.dataset_name}/{hparams.run_id}/train"
+            file_list = [f for f in listdir(ckpt_path) if isfile(join(ckpt_path, f))]
+            ckpt_path += f'/{file_list[0]}'
+            ckpt = torch.load(ckpt_path)
         model.load_state_dict(ckpt['state_dict'])
         
     

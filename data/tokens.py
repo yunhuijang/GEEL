@@ -52,6 +52,18 @@ def map_diff_ni_tokens(dataset, order):
     
     return diff_ni_tokens
 
+def map_diff_ni_rel_tokens(dataset, order):
+    with open("resource/graph_info.json", "r") as json_file:
+        json_data = json.load(json_file)
+    
+    graph_info = json_data[dataset]
+    bw = graph_info['bw'][order]
+    
+    diff_ni_rel_tokens = standard_tokens.copy()
+    diff_ni_rel_tokens.extend([(num, b) for b in np.arange(1,bw+1) for num in np.arange(0,bw+1)])
+    
+    return diff_ni_rel_tokens
+
 # map sequential representation tokens
 for dataset, bw, node_num in zip(dataset_list, bw_list, node_num_list):
     # map adj_list tokens
@@ -189,7 +201,8 @@ def token_to_id(data_name, string_type, is_token=False, vocab_size=200, order='C
         return token_list_to_dict(tokens)
         # return TOKENS_KEY_DICT_DIFF_NI[data_name]
     elif string_type == 'adj_list_diff_ni_rel':
-        return TOKENS_KEY_DICT_DIFF_NI_REL[data_name]
+        tokens = map_tokens(data_name, string_type, 0, order)
+        return token_list_to_dict(tokens)
     else:
         assert False, "No token type"
 
@@ -319,7 +332,8 @@ def map_tokens(data_name, string_type, vocab_size, order, is_token=False):
             # tokens = TOKENS_DICT_DIFF_NI[data_name]
             tokens = map_diff_ni_tokens(dataset=data_name, order=order)
     elif string_type == 'adj_list_diff_ni_rel':
-        tokens = TOKENS_DICT_DIFF_NI_REL[data_name]
+        # tokens = TOKENS_DICT_DIFF_NI_REL[data_name]
+        tokens = map_diff_ni_rel_tokens(dataset=data_name, order=order)
     elif string_type in ['adj_flatten', 'adj_flatten_sym', 'bwr']:
         tokens = TOKENS_DICT_FLATTEN[data_name]
     elif string_type in ['adj_seq', 'adj_seq_rel']:
