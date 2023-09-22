@@ -12,6 +12,7 @@ from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.utils import to_networkx
 from scipy.sparse import lil_matrix, vstack
 import sentencepiece as spm
+import sys
 
 from data.orderings import ORDER_FUNCS, order_graphs
 
@@ -684,3 +685,75 @@ def train_data_to_string(data_name='GDSS_com', string_type='adj_seq_rel', order=
 def generate_vocabulary(dataset_name, string_type, vocab_size):
     train_data_to_string(dataset_name, string_type)
     spm.SentencePieceTrainer.Train(f"--input=samples/string/{dataset_name}/{string_type}.txt --model_prefix=resource/tokenizer/{dataset_name}/{string_type}_{vocab_size} --vocab_size={vocab_size} --model_type=bpe --character_coverage=1.0 --max_sentence_length=160000 --input_sentence_size=10000000")
+
+
+# Codes adapted from BiGG
+def get_rand_grid(n_nodes, n_d=5):
+    graphs = []
+    for i in range(n_nodes - n_d, n_nodes + n_d):
+        for j in range(n_nodes - n_d, n_nodes + n_d):
+            print(f'{i}-{j}')
+            graph = nx.grid_2d_graph(i, j)
+            graphs.append(graph)
+    print(sum([len(graph.nodes) for graph in graphs])/len(graphs))
+    print(len(graphs))
+    return graphs
+
+def gen_connected(g_type, min_n, max_n, **kwargs):
+    n_tried = 0
+    while n_tried < 100:
+        n_tried += 1
+        cur_n = np.random.randint(max_n - min_n + 1) + min_n
+        if g_type == 'erdos_renyi':
+            g = nx.erdos_renyi_graph(n=cur_n, p=kwargs['er_p'])
+        else:
+            raise NotImplementedError
+
+        g_idx = max(nx.connected_components(g), key=len)
+        gcc = g.subgraph(list(g_idx))
+        # generate another graph if this one has fewer nodes than min_n
+        if nx.number_of_nodes(gcc) < min_n:
+            continue
+
+        max_idx = max(gcc.nodes())
+        if max_idx != nx.number_of_nodes(gcc) - 1:
+            idx_map = {}
+            for idx in gcc.nodes():
+                t = len(idx_map)
+                idx_map[idx] = t
+
+            g = nx.Graph()
+            g.add_nodes_from(range(0, nx.number_of_nodes(gcc)))
+            for edge in gcc.edges():
+                g.add_edge(idx_map[edge[0]], idx_map[edge[1]])
+            gcc = g
+        max_idx = max(gcc.nodes())
+        assert max_idx == nx.number_of_nodes(gcc) - 1
+
+        # check number of nodes in induced subgraph
+        if len(gcc) < min_n or len(gcc) > max_n:
+            continue
+        return gcc
+    print('too many rejections in sampling, please check the hyper params')
+    sys.exit()
+
+def get_er_graph(n_nodes, p):
+    n_min = n_nodes - 5
+    n_max = n_nodes + 10
+
+    graphs = [gen_connected('erdos_renyi', n_min, n_max, er_p=p) for _ in tqdm(range(100))]
+    return graphs
+
+def create_graphs(graph_type, num_node):
+    if 'grid' in graph_type:
+        n_nodes = int(graph_type[4:]) if graph_type != 'grid' else 15
+        graphs = get_rand_grid(n_nodes)
+    elif graph_type.startswith('er'):
+        _, n_nodes, p = graph_type.split('-')
+        n_nodes = int(n_nodes)
+        p = float(p)
+        graphs = get_er_graph(n_nodes, p)
+    with open(f'resource/grid/{num_node}.pkl', 'wb') as f:
+        pickle.dump(graphs, f)
+    
+    return graphs

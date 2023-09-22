@@ -475,8 +475,10 @@ def evaluate_molecules(weighted_adjs, xs, data_name, test_graphs, device, test_s
     metrics_dict['validity_wo_cor'] = sum(no_corrects) / num_mols
     wandb.log(metrics_dict)
     
-def check_train_mmd(data_name):
+def check_train_mmd(data_name, seed):
     methods, kernels = load_eval_settings('')
-    train_graphs, _, test_graphs = load_graphs(data_name)
+    train_graphs, _, test_graphs = load_graphs(data_name=data_name, order='C-M', seed=seed)
+    random.seed(seed)
+    random.shuffle(train_graphs)
     mmd_results = eval_graph_list(test_graphs, train_graphs[:len(test_graphs)], methods=methods, kernels=kernels)
     return mmd_results
