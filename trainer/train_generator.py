@@ -58,7 +58,13 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'qm9': QM9Dataset,
             'zinc': ZINCDataset,
             'moses': MosesDataset,
-            'guacamol': GuacamolDataset
+            'guacamol': GuacamolDataset,
+            'grid-500': GridDataset,
+            'grid-1000': GridDataset,
+            'grid-5000': GridDataset, 
+            'grid-10000': GridDataset,
+            'grid-50000': GridDataset, 
+            'grid-100000': GridDataset
         }.get(hparams.dataset_name)
         # self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:
@@ -196,6 +202,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 t0 = time.perf_counter()
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
+                assert False, f'{self.hparams.max_len}: {generation_time}'
                 
             if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff', 'adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]

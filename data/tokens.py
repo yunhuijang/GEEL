@@ -19,11 +19,16 @@ standard_tokens = [PAD_TOKEN, BOS_TOKEN, EOS_TOKEN]
 # TODO: fix moses / guacamol node_num and bw
 
 dataset_list = ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 'planar', 'sbm', 
-                'proteins', 'lobster', 'point', 'ego', 'qm9', 'zinc', 'moses', 'guacamol']
+                'proteins', 'lobster', 'point', 'ego', 'qm9', 'zinc', 'moses', 'guacamol',
+                'grid-500', 'grid-1000', 'grid-5000', 'grid-10000', 'grid-50000', 'grid-100000']
 # dataset_list = ['GDSS_ego']
 # maximum number of nodes of each dataset (train, test, val)
-node_num_list = [17, 20, 125, 361, 64, 187, 500, 98, 5037, 399, 9, 38, 31, 88]
-bw_list = [15, 8, 19, 19, 26, 111, 125, 49, 167, 241, 5, 10, 12, 12]
+node_num_list = [17, 20, 125, 361, 64, 187,
+                 500, 98, 5037, 399, 9, 38, 31, 88,
+                 676, 1296, 5620, 10816, 51984, 102400]
+bw_list = [15, 8, 19, 19, 26, 111, 
+           125, 49, 167, 241, 5, 10, 12, 12,
+           26, 36, 75, 104]
 
 TOKENS_DICT = {}
 TOKENS_DICT_DIFF = {}
