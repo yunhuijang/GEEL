@@ -85,6 +85,36 @@ class ComLargeDataset(EgoDataset):
     raw_dir = f'{DATA_DIR}/community'
     is_mol = False  
 
+class Grid500Dataset(EgoDataset):
+    data_name = 'grid-500'
+    raw_dir = f'{DATA_DIR}/grid-500'
+    is_mol = False
+    
+class Grid1000Dataset(EgoDataset):
+    data_name = 'grid-1000'
+    raw_dir = f'{DATA_DIR}/grid-1000'
+    is_mol = False
+    
+class Grid2000Dataset(EgoDataset):
+    data_name = 'grid-2000'
+    raw_dir = f'{DATA_DIR}/grid-2000'
+    is_mol = False
+    
+class Grid5000Dataset(EgoDataset):
+    data_name = 'grid-5000'
+    raw_dir = f'{DATA_DIR}/grid-5000'
+    is_mol = False
+    
+class Grid10000Dataset(EgoDataset):
+    data_name = 'grid-10000'
+    raw_dir = f'{DATA_DIR}/grid-10000'
+    is_mol = False
+    
+class Grid20000Dataset(EgoDataset):
+    data_name = 'grid-20000'
+    raw_dir = f'{DATA_DIR}/grid-20000'
+    is_mol = False
+
 class QM9Dataset(EgoDataset):
     data_name = "qm9"
     raw_dir = f"{DATA_DIR}/qm9"

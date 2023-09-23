@@ -302,7 +302,7 @@ def n_community(c_sizes, p_inter=0.05):
 def load_graphs(data_name, order='C-M', seed=0, is_train=False):
     raw_dir = f"resource/{data_name}"
     if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 
-                     'grid-500', 'grid-1000', 'grid-5000', 'grid-10000', 'grid-50000', 'grid-100000']:
+                     'grid-500', 'grid-1000', 'grid-2000', 'grid-5000', 'grid-10000', 'grid-20000', 'grid-50000', 'grid-100000']:
         with open(f'{raw_dir}.pkl', 'rb') as f:
             graphs = pickle.load(f)
     elif data_name == 'proteins':
@@ -754,7 +754,7 @@ def create_graphs(graph_type, num_node):
         n_nodes = int(n_nodes)
         p = float(p)
         graphs = get_er_graph(n_nodes, p)
-    with open(f'resource/grid/{num_node}.pkl', 'wb') as f:
+    with open(f'resource/grid-{num_node}.pkl', 'wb') as f:
         pickle.dump(graphs, f)
     
     return graphs

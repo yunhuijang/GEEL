@@ -13,6 +13,7 @@ import networkx as nx
 
 # from model.trans_generator import TransGenerator
 from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset, GuacamolDataset
+from data.dataset import Grid10000Dataset, Grid1000Dataset, Grid20000Dataset, Grid2000Dataset, Grid5000Dataset, Grid500Dataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
 from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
@@ -59,12 +60,14 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'zinc': ZINCDataset,
             'moses': MosesDataset,
             'guacamol': GuacamolDataset,
-            'grid-500': GridDataset,
-            'grid-1000': GridDataset,
-            'grid-5000': GridDataset, 
-            'grid-10000': GridDataset,
-            'grid-50000': GridDataset, 
-            'grid-100000': GridDataset
+            'grid-500': Grid500Dataset,
+            'grid-1000': Grid1000Dataset,
+            'grid-2000': Grid2000Dataset,
+            'grid-5000': Grid5000Dataset, 
+            'grid-10000': Grid10000Dataset,
+            'grid-20000': Grid20000Dataset
+            # 'grid-50000': Grid50000Dataset, 
+            # 'grid-100000': GridDataset
         }.get(hparams.dataset_name)
         # self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:
