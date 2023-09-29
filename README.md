@@ -1,6 +1,6 @@
-# Adjacecncy List-based Graph generaetion via Transformers
+# A Simple and Scalable Representation for Graph Generation
 
-In this repository, we implement the Adjacecncy List-based Graph generaetion via Transformers (ALT).
+In this repository, we implement GEEL: Gap Encoded Edge List in the paper: A Simple and Scalable Representation for Graph Generation.
 
 ## Dependencies
 
