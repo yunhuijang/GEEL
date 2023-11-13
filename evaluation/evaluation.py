@@ -113,11 +113,11 @@ def gaussian(x, y, sigma=1.0):
 
 def load_eval_settings(data, orbit_on=True):
     # Settings for generic graph generation
-    methods = ['degree', 'cluster', 'orbit', 'spectral'] 
+    methods = ['degree', 'cluster', 'orbit'] 
     kernels = {'degree':gaussian_emd, 
                 'cluster':gaussian_emd, 
-                'orbit':gaussian,
-                'spectral':gaussian_emd}
+                'orbit':gaussian}
+                # 'spectral':gaussian_emd}
     return methods, kernels
 
 def kernel_parallel_worker(t):
@@ -481,4 +481,10 @@ def check_train_mmd(data_name, seed):
     random.seed(seed)
     random.shuffle(train_graphs)
     mmd_results = eval_graph_list(test_graphs, train_graphs[:len(test_graphs)], methods=methods, kernels=kernels)
+    return mmd_results
+
+def check_gengraph_mmd(graphs, data_name):
+    methods, kernels = load_eval_settings('')
+    _, _, test_graphs = load_graphs(data_name=data_name, order='C-M')
+    mmd_results = eval_graph_list(test_graphs, graphs[:len(test_graphs)], methods=methods, kernels=kernels)
     return mmd_results

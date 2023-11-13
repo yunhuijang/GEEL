@@ -16,3 +16,5 @@ resource/raw/
 *.out
 *.pkl
 *.pt
+*.code-workspace
+other_samples/

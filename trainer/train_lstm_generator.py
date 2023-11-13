@@ -10,7 +10,7 @@ import pytorch_lightning as pl
 import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
-from pytorch_lightning.callbacks import ModelCheckpoint, Timer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from datetime import date
 
 from evaluation.evaluation import compute_sequence_cross_entropy
@@ -95,11 +95,11 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
     @staticmethod
     def add_args(parser):
        
-        parser.add_argument("--dataset_name", type=str, default="GDSS_com")
+        parser.add_argument("--dataset_name", type=str, default="planar")
         parser.add_argument("--batch_size", type=int, default=128)
         parser.add_argument("--num_workers", type=int, default=0)
 
-        parser.add_argument("--order", type=str, default="random")
+        parser.add_argument("--order", type=str, default="C-M")
         parser.add_argument("--replicate", type=int, default=0)
         #
         parser.add_argument("--emb_size", type=int, default=512)
@@ -115,7 +115,7 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--group", type=str, default='lstm')
         parser.add_argument("--model", type=str, default='lstm')
         parser.add_argument("--max_len", type=int, default=44)
-        parser.add_argument("--string_type", type=str, default='adj_list_diff_ni')
+        parser.add_argument("--string_type", type=str, default='adj_list_diff_ni_rel')
         
         
         # transformer
@@ -136,6 +136,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     LSTMGeneratorLightningModule.add_args(parser)
     hparams = parser.parse_args()
+    # wandb.init()
     if hparams.run_id == None:
         wandb_logger = WandbLogger(name=f'{hparams.dataset_name}-{hparams.model}-{hparams.string_type}', 
                                project='alt', group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
@@ -176,15 +177,15 @@ if __name__ == "__main__":
         dirpath=os.path.join("resource/checkpoint/", hparams.dataset_name, wandb.run.id, 'last')
     )
 
-    timer = Timer(duration="14:00:00:00")
+    # timer = Timer(duration="14:00:00:00")
     trainer = pl.Trainer(
         devices=1,
         accelerator='gpu',
         default_root_dir="/resource/log/",
         max_epochs=hparams.max_epochs,
-        callbacks=[checkpoint_callback_val, checkpoint_callback_train, checkpoint_callback_last, timer],
+        callbacks=[checkpoint_callback_val, checkpoint_callback_train, checkpoint_callback_last],
         logger=wandb_logger,
         resume_from_checkpoint=ckpt_path
     )
     trainer.fit(model, ckpt_path=ckpt_path)
-    wandb.log({"train_time": round(timer.time_elapsed("train"),3)})    
+    # wandb.log({"train_time": round(timer.time_elapsed("train"),3)})    

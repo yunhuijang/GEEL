@@ -25,7 +25,7 @@ options_one = {
     'width': 1.2
 }
 
-def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0):
+def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0, format='png'):
     batch_size = len(graphs)
     max_num = min(batch_size, max_num)
     img_c = int(math.ceil(np.sqrt(max_num)))
@@ -53,8 +53,7 @@ def plot_graphs_list(graphs, title='title', max_num=16, save_dir=None, N=0):
         nx.draw(G, pos, with_labels=False, **options)
         ax.title.set_text(title_str)
     # figure.suptitle(title)
-
-    save_fig(save_dir=save_dir, title=title)
+    save_fig(save_dir=save_dir, title=title, dpi=1000, format=format)
     
     return 
 
@@ -76,7 +75,7 @@ def plot_one_graph(graph, title, save_dir):
 
     save_fig(save_dir=save_dir, title=title)
 
-def save_fig(save_dir=None, title='fig', dpi=1000):
+def save_fig(save_dir=None, title='title', dpi=1000, format='png'):
     plt.tight_layout()
     plt.subplots_adjust(top=0.85)
     if save_dir is None:
@@ -85,10 +84,11 @@ def save_fig(save_dir=None, title='fig', dpi=1000):
         fig_dir = os.path.join(*['samples', 'fig', save_dir])
         if not os.path.exists(fig_dir):
             os.makedirs(fig_dir)
-        plt.savefig(os.path.join(fig_dir, title),
+        plt.savefig(os.path.join(fig_dir, f'{title}.{format}'),
                     bbox_inches='tight',
                     dpi=dpi,
-                    transparent=False)
+                    transparent=False,
+                    format=format)
         plt.close()
     return
 

@@ -1,10 +1,11 @@
 import networkx as nx
-# import graph_tool.all as gt
+# import graph_tool.src.graph_tool.all as gt
 from scipy.stats import chi2
 import os
 import numpy as np
 import torch
 import concurrent.futures
+import copy
 
 # codes adapted from https://github.com/KarolisMart/SPECTRE
 def is_planar_graph(G):
@@ -179,5 +180,45 @@ def eval_acc_planar_graph(G_list, grid_start=10, grid_end=20):
     count = 0
     for gg in G_list:
         if is_planar_graph(gg):
+            count += 1
+    return count / float(len(G_list))
+
+def is_lobster_graph(G):
+    """
+        Check a given graph is a lobster graph or not
+
+        Removing leaf nodes twice:
+
+        lobster -> caterpillar -> path
+
+    """
+    ### Check if G is a tree
+    if nx.is_tree(G):
+        G = G.copy()
+        ### Check if G is a path after removing leaves twice
+        leaves = [n for n, d in G.degree() if d == 1]
+        G.remove_nodes_from(leaves)
+
+        leaves = [n for n, d in G.degree() if d == 1]
+        G.remove_nodes_from(leaves)
+
+        num_nodes = len(G.nodes())
+        num_degree_one = [d for n, d in G.degree() if d == 1]
+        num_degree_two = [d for n, d in G.degree() if d == 2]
+
+        if sum(num_degree_one) == 2 and sum(num_degree_two) == 2 * (num_nodes - 2):
+            return True
+        elif sum(num_degree_one) == 0 and sum(num_degree_two) == 0:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+def eval_acc_lobster_graph(G_list):
+    G_list = [copy.deepcopy(gg) for gg in G_list]
+    count = 0
+    for gg in G_list:
+        if is_lobster_graph(gg):
             count += 1
     return count / float(len(G_list))

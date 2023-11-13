@@ -21,6 +21,8 @@ from plot import plot_graphs_list
 from data.tokens import untokenize
 from data.mol_tokens import untokenize_mol
 from data.mol_utils import map_featured_samples_to_adjs
+from evaluation.evaluation_spectre import eval_fraction_unique_non_isomorphic_valid, eval_fraction_isomorphic, eval_fraction_unique, is_planar_graph, eval_acc_planar_graph, eval_acc_grid_graph, eval_acc_sbm_graph, is_sbm_graph
+
 
 DATA_DIR = "resource"
 
@@ -76,7 +78,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             train_datasets = []
             
             for epoch in tqdm(range(self.max_epochs), 'Order training graphs'):
-                file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch}.pt'
+                file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch%200}.pt'
                 if os.path.isfile(file_path):
                     train_graphs = torch.load(file_path)
                 else:
@@ -171,7 +173,8 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 save_graph_list(self.hparams.dataset_name, wandb.run.id, sampled_graphs)
                 plot_dir = f'{self.hparams.dataset_name}/{wandb.run.id}'
                 plot_graphs_list(sampled_graphs, save_dir=plot_dir)
-                wandb.log({"samples": wandb.Image(f'./samples/fig/{plot_dir}/title.png')})
+                print(f'current: {os.getcwd()}')
+                wandb.log({"samples": wandb.Image(f'samples/fig/{plot_dir}/title.png')})
 
                 # GDSS evaluation
                 methods, kernels = load_eval_settings('')
@@ -189,7 +192,18 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     mmd_results['nspdk'] = scores_nspdk
                     mmd_results['avg_mmd'] = (mmd_results['degree'] + mmd_results['orbit'] + mmd_results['cluster'])/3
                 wandb.log(mmd_results)
-
+                
+                # SPECTRE evaluation
+                gen_graphs = sampled_graphs[:len(self.test_graphs)]
+                if len(gen_graphs) > 0:
+                    spectre_valid = eval_acc_planar_graph(gen_graphs)
+                    spectre_unique = eval_fraction_unique(gen_graphs)
+                    spectre_novel = round(1.0-eval_fraction_isomorphic(gen_graphs, self.train_graphs),3)
+                    _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_planar_graph)
+                    spectre_results = {'spec_valid': spectre_valid, 'spec_unique': spectre_unique, 'spec_novel': spectre_novel,
+                                    'spec_un': spectre_un, 'spec_vun': spectre_vun}
+                    wandb.log(spectre_results)
+                
     def sample(self, num_samples):
         '''
         generate graphs
@@ -205,7 +219,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 t0 = time.perf_counter()
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
-                assert False, f'{self.hparams.max_len}: {generation_time}'
+                # assert False, f'{self.hparams.max_len}: {generation_time}'
                 
             if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff', 'adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]

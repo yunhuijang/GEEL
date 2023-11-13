@@ -8,7 +8,7 @@ import numpy as np
 import os
 import json
 import math
-from torch_geometric.datasets import MNISTSuperpixels
+# from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.utils import to_networkx
 from scipy.sparse import lil_matrix, vstack
 import sentencepiece as spm
@@ -385,7 +385,7 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
         graph_list.append(new_ordered_graphs)
         if is_train:
             # return only train graphs
-            torch.save(new_ordered_graphs, f'ordered_dataset/{data_name}/{seed}.pt')
+            torch.save(new_ordered_graphs, f'ordered_dataset/{data_name}/{seed%200}.pt')
             return new_ordered_graphs
     
     return graph_list
@@ -757,4 +757,11 @@ def create_graphs(graph_type, num_node):
     with open(f'resource/grid-{num_node}.pkl', 'wb') as f:
         pickle.dump(graphs, f)
     
+    return graphs
+
+def get_er_graph(n_nodes, p):
+    n_min = n_nodes - 5
+    n_max = n_nodes + 10
+
+    graphs = [gen_connected('erdos_renyi', n_min, n_max, er_p=p) for _ in tqdm(range(30))]
     return graphs
