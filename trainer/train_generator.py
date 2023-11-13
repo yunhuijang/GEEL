@@ -78,7 +78,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             train_datasets = []
             
             for epoch in tqdm(range(self.max_epochs), 'Order training graphs'):
-                file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch%200}.pt'
+                file_path = f'ordered_dataset/{hparams.dataset_name}/{epoch%hparams.random_order_epoch}.pt'
                 if os.path.isfile(file_path):
                     train_graphs = torch.load(file_path)
                 else:
@@ -196,10 +196,17 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 # SPECTRE evaluation
                 gen_graphs = sampled_graphs[:len(self.test_graphs)]
                 if len(gen_graphs) > 0:
-                    spectre_valid = eval_acc_planar_graph(gen_graphs)
+                    if self.hparams.dataset_name == 'lobster':
+                        spectre_valid = eval_acc_lobster_graph(gen_graphs)
+                        _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_lobster_graph)
+                    elif self.hparams.dataset_name == 'planar':
+                        spectre_valid = eval_acc_planar_graph(gen_graphs)
+                        _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_planar_graph)
+                    else:
+                        spectre_valid = 0
+                        _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs)
                     spectre_unique = eval_fraction_unique(gen_graphs)
                     spectre_novel = round(1.0-eval_fraction_isomorphic(gen_graphs, self.train_graphs),3)
-                    _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_planar_graph)
                     spectre_results = {'spec_valid': spectre_valid, 'spec_unique': spectre_unique, 'spec_novel': spectre_novel,
                                     'spec_un': spectre_un, 'spec_vun': spectre_vun}
                     wandb.log(spectre_results)

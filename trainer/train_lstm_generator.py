@@ -127,6 +127,8 @@ class LSTMGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--run_id", type=str, default=None)
         parser.add_argument("--is_simple_token", action="store_true")
         parser.add_argument("--is_random_order", action="store_true")
+        
+        parser.add_argument("--random_order_epoch", type=int, default=1)
 
         return parser
 
