@@ -21,7 +21,7 @@ from plot import plot_graphs_list
 from data.tokens import untokenize
 from data.mol_tokens import untokenize_mol
 from data.mol_utils import map_featured_samples_to_adjs
-from evaluation.evaluation_spectre import eval_fraction_unique_non_isomorphic_valid, eval_fraction_isomorphic, eval_fraction_unique, is_planar_graph, eval_acc_planar_graph, eval_acc_grid_graph, eval_acc_sbm_graph, is_sbm_graph
+from evaluation.evaluation_spectre import eval_fraction_unique_non_isomorphic_valid, eval_fraction_isomorphic, eval_fraction_unique, is_planar_graph, eval_acc_planar_graph, eval_acc_grid_graph, eval_acc_sbm_graph, is_sbm_graph, eval_acc_lobster_graph, eval_fraction_isomorphic_ego, eval_fraction_unique_ego, eval_fraction_unique_non_isomorphic_valid_ego, is_grid_graph, is_lobster_graph
 
 
 DATA_DIR = "resource"
@@ -170,11 +170,11 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 wandb.log({'ratio': len(adjs) / len(adj_lists)})
                 
                 sampled_graphs = [adj_to_graph(adj) for adj in adjs]
-                save_graph_list(self.hparams.dataset_name, wandb.run.id, sampled_graphs)
+                save_graph_list(self.hparams.dataset_name, wandb.run.id + "_" + str(self.current_epoch), sampled_graphs)
                 plot_dir = f'{self.hparams.dataset_name}/{wandb.run.id}'
-                plot_graphs_list(sampled_graphs, save_dir=plot_dir)
+                plot_graphs_list(sampled_graphs, title=self.current_epoch, save_dir=plot_dir)
                 print(f'current: {os.getcwd()}')
-                wandb.log({"samples": wandb.Image(f'samples/fig/{plot_dir}/title.png')})
+                wandb.log({"samples": wandb.Image(f'samples/fig/{plot_dir}/{self.current_epoch}.png')})
 
                 # GDSS evaluation
                 methods, kernels = load_eval_settings('')
@@ -202,11 +202,21 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                     elif self.hparams.dataset_name == 'planar':
                         spectre_valid = eval_acc_planar_graph(gen_graphs)
                         _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_planar_graph)
+                    elif self.hparams.dataset_name == 'GDSS_grid':
+                        spectre_valid = eval_acc_grid_graph(gen_graphs)
+                        _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs, is_grid_graph)
+                    elif self.hparams.dataset_name == 'ego':
+                        spectre_valid = 0
+                        _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid_ego(gen_graphs, self.train_graphs)
                     else:
                         spectre_valid = 0
                         _, spectre_un, spectre_vun = eval_fraction_unique_non_isomorphic_valid(gen_graphs, self.train_graphs)
-                    spectre_unique = eval_fraction_unique(gen_graphs)
-                    spectre_novel = round(1.0-eval_fraction_isomorphic(gen_graphs, self.train_graphs),3)
+                    if self.hparams.dataset_name == 'ego':
+                        spectre_unique = eval_fraction_unique_ego(gen_graphs)
+                        spectre_novel = eval_fraction_isomorphic_ego(gen_graphs, self.train_graphs)
+                    else:
+                        spectre_unique = eval_fraction_unique(gen_graphs)
+                        spectre_novel = round(1.0-eval_fraction_isomorphic(gen_graphs, self.train_graphs),3)
                     spectre_results = {'spec_valid': spectre_valid, 'spec_unique': spectre_unique, 'spec_novel': spectre_novel,
                                     'spec_un': spectre_un, 'spec_vun': spectre_vun}
                     wandb.log(spectre_results)
@@ -226,7 +236,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 t0 = time.perf_counter()
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
-                # assert False, f'{self.hparams.max_len}: {generation_time}'
                 
             if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff', 'adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]

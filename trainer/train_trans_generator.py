@@ -38,7 +38,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
             dropout=hparams.dropout,
             max_len=hparams.max_len,
             string_type=hparams.string_type,
-            learn_pos=hparams.learn_pos,
+            pe=hparams.pe,
             abs_pos=hparams.abs_pos,
             data_name=hparams.dataset_name,
             bw=self.bw,
@@ -119,7 +119,7 @@ class TransGeneratorLightningModule(BaseGeneratorLightningModule):
         parser.add_argument("--dim_feedforward", type=int, default=512)
         parser.add_argument("--input_dropout", type=float, default=0.0)
         parser.add_argument("--gradient_clip_val", type=float, default=1.0)
-        parser.add_argument("--learn_pos", action="store_true")
+        parser.add_argument("--pe", type=str, default='node')
         parser.add_argument("--abs_pos", action="store_true")
         parser.add_argument("--is_token", action="store_true")
         parser.add_argument("--vocab_size", type=int, default=70)

@@ -19,13 +19,13 @@ class SimpleTokenEmbedding(nn.Module):
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbedding(nn.Module):
-    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes, order):
+    def __init__(self, vocab_size, emb_size, pe, max_len, string_type, data_name, bw, num_nodes, order):
         super(TokenEmbedding, self).__init__()
 
         self.num_nodes = num_nodes
         self.bw = bw
         self.emb_size = emb_size
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.data_name = data_name
         self.vocab_size = vocab_size
         self.order = order
@@ -74,7 +74,7 @@ class TokenEmbedding(nn.Module):
             x = x1 + x2
             
         # node PE for adj_list_diff_ni (cumsum)
-        if self.string_type in ['adj_list_diff_ni', 'adj_list_diff_ni_rel']:
+        if self.pe == 'node':
             ni, _ = self.split_nodes(ID2TOKEN, token_sequences, device=token_sequences.device)
             ni[ni==2] = -100000
             zero_mask = torch.isin(ni, torch.tensor([0,1,3]).to(token_sequences.device))
@@ -86,17 +86,21 @@ class TokenEmbedding(nn.Module):
             node_pe = self.embedding_numnode(current_node) * math.sqrt(self.emb_size)
             x += node_pe
         # learnable PE
-        if self.learn_pos:
+        elif self.pe == 'learn':
             x_batch_size = x.shape[0]
             x_seq_len = x.shape[1]
             pe = self.positional_embedding[:,:x_seq_len]
             pe_stack = torch.tile(pe, (x_batch_size, 1, 1))
             return x + pe_stack
+        
+        elif self.pe == 'no':
+            pass
+        
         return x
 
 class LSTMGenerator(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False, order='C-M'
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, pe='node', is_simple_token=False, order='C-M'
     ):
         super(LSTMGenerator, self).__init__()
         self.emb_size = emb_size
@@ -106,7 +110,7 @@ class LSTMGenerator(nn.Module):
         self.dataset = dataset
         self.vocab_size = vocab_size
         self.is_token = is_token
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.max_len = max_len
         self.bw = bw
         self.num_nodes = num_nodes
@@ -119,7 +123,7 @@ class LSTMGenerator(nn.Module):
         self.vocab_size = self.output_size = len(self.tokens)
 
         self.embedding_layer = nn.Embedding(self.vocab_size, self.emb_size)
-        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.learn_pos, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes, self.order)
+        self.token_embedding_layer = TokenEmbedding(self.vocab_size, emb_size, self.pe, self.max_len, self.string_type, self.dataset, self.bw, self.num_nodes, self.order)
         self.simple_token_embedding_layer = SimpleTokenEmbedding(self.vocab_size, self.emb_size)
         self.lstm_layer = nn.LSTM(self.emb_size, self.emb_size,  
                                 dropout=self.dropout, batch_first=True, num_layers=self.num_layers)
@@ -165,5 +169,4 @@ class LSTMGenerator(nn.Module):
             sequences = torch.cat([sequences, preds.unsqueeze(1)], dim=1)
 
             ended = torch.logical_or(ended, preds == self.TOKEN2ID[EOS_TOKEN])
-
         return sequences

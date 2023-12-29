@@ -51,7 +51,7 @@ class TokenEmbedding(nn.Module):
 # model with that generates feature + adj list (masking in sequence)
 class LSTMGeneratorFeatureList(nn.Module):
     def __init__(
-        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, learn_pos=False, is_simple_token=False, order='C-M'
+        self, emb_size, dropout, num_layers, string_type, dataset, vocab_size, num_nodes, max_len, bw, is_token=False, pe=False, is_simple_token=False, order='C-M'
     ):
         super(LSTMGeneratorFeatureList, self).__init__()
         self.emb_size = emb_size
@@ -61,7 +61,7 @@ class LSTMGeneratorFeatureList(nn.Module):
         self.data_name = dataset
         self.vocab_size = vocab_size
         self.is_token = is_token
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.max_len = max_len
         self.bw = bw
         self.num_nodes = num_nodes

@@ -19,7 +19,7 @@ def bw_from_adj(A: np.ndarray) -> int:
     return band_sizes.max()
 
 
-def random_BFS_order(G: nx.Graph, seed=0) -> tuple[list[int], int]:
+def random_BFS_order(G: nx.Graph, seed=0):
     """
     :param G: Graph
     :return: random BFS order, maximum queue length (equal to bandwidth of ordering)
@@ -44,7 +44,7 @@ def bw_from_order(G: nx.Graph, order: list) -> int:
     return bw_from_adj(nx.to_numpy_array(G, nodelist=order))
 
 
-def random_DFS_order(G: nx.Graph, seed=0) -> tuple[list[int], int]:
+def random_DFS_order(G: nx.Graph, seed=0):
     """
     :param G: Graph
     :return: random DFS order, maximum queue length (equal to bandwidth of ordering)
@@ -71,7 +71,7 @@ def uniform_random_order(G: nx.Graph, seed) -> tuple:
     bw = bw_from_order(G, order)
     return order, bw
 
-def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None) -> tuple[list[int], int]:
+def random_connected_cuthill_mckee_ordering(G: nx.Graph, seed=0, heuristic=None):
     """
     adapted from NX source.
     :return: node order, bandwidth

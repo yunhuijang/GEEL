@@ -40,7 +40,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
             max_len=hparams.max_len,
             bw=self.bw,
             num_nodes=self.num_nodes,
-            learn_pos=hparams.learn_pos,
+            pe=hparams.pe,
             is_simple_token=hparams.is_simple_token,
             order=hparams.order
         )
@@ -112,7 +112,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
         # transformer
         parser.add_argument("--num_layers", type=int, default=3)
         parser.add_argument("--is_token", action="store_true")
-        parser.add_argument("--learn_pos", action="store_true")
+        parser.add_argument("--pe", type=str, default='node')
         parser.add_argument("--vocab_size", type=int, default=400)
         
         parser.add_argument("--run_id", type=str, default=None)

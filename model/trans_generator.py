@@ -36,11 +36,11 @@ class TransGenerator(LSTMGenerator):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
+        input_dropout, dropout, max_len, string_type, pe, abs_pos, 
         data_name, bw, num_nodes, is_token, vocab_size, order
     ):
         super(TransGenerator, self).__init__(emb_size, dropout, num_layers, string_type, data_name,
-                                             vocab_size, num_nodes, max_len, bw, is_token, learn_pos, False, order=order)
+                                             vocab_size, num_nodes, max_len, bw, is_token, pe, False, order=order)
         self.nhead = nhead
         self.data_name = data_name
         self.string_type = string_type
@@ -51,7 +51,7 @@ class TransGenerator(LSTMGenerator):
         self.ID2TOKEN = id_to_token(self.tokens)
         
         self.TOKEN2ID = token_to_id(self.data_name, self.string_type, self.is_token, self.vocab_size, self.order)
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.abs_pos = abs_pos
         self.max_len = max_len
         self.bw = bw
@@ -60,7 +60,7 @@ class TransGenerator(LSTMGenerator):
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.pe, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes, self.order)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #

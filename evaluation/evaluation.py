@@ -113,11 +113,11 @@ def gaussian(x, y, sigma=1.0):
 
 def load_eval_settings(data, orbit_on=True):
     # Settings for generic graph generation
-    methods = ['degree', 'cluster', 'orbit'] 
+    methods = ['degree', 'cluster', 'orbit', 'spectral'] 
     kernels = {'degree':gaussian_emd, 
                 'cluster':gaussian_emd, 
-                'orbit':gaussian}
-                # 'spectral':gaussian_emd}
+                'orbit':gaussian,
+                'spectral':gaussian_emd}
     return methods, kernels
 
 def kernel_parallel_worker(t):

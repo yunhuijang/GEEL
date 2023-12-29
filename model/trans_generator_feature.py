@@ -16,13 +16,13 @@ from model.trans_generator import TokenEmbedding
 
 # helper Module to convert tensor of input indices into corresponding tensor of token embeddings
 class TokenEmbeddingFeature(nn.Module):
-    def __init__(self, vocab_size, emb_size, learn_pos, max_len, string_type, data_name, bw, num_nodes):
+    def __init__(self, vocab_size, emb_size, pe, max_len, string_type, data_name, bw, num_nodes):
         super(TokenEmbeddingFeature, self).__init__()
         # self.num_nodes = int((-1+ math.sqrt(1 + 4*2*(vocab_size - 3))) / 2)
         self.num_nodes = num_nodes
         self.bw = bw
         self.emb_size = emb_size
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.embedding = nn.Embedding(vocab_size, emb_size)
         self.embedding_numnode = nn.Embedding(self.num_nodes+4, emb_size)
         self.embedding_diff = nn.Embedding(self.bw+4, emb_size)
@@ -79,7 +79,7 @@ class TokenEmbeddingFeature(nn.Module):
                 x2 = self.embedding_diff(t2) * math.sqrt(self.emb_size)
             x = x1 + x2
         # learnable PE
-        if self.learn_pos:
+        if self.pe == 'learn':
             x_batch_size = x.shape[0]
             x_seq_len = x.shape[1]
             pe = self.positional_embedding[:,:x_seq_len]
@@ -110,7 +110,7 @@ class TransGeneratorFeature(nn.Module):
     
     def __init__(
         self, num_layers, emb_size, nhead, dim_feedforward, 
-        input_dropout, dropout, max_len, string_type, learn_pos, abs_pos, 
+        input_dropout, dropout, max_len, string_type, pe, abs_pos, 
         data_name, bw, num_nodes
     ):
         super(TransGeneratorFeature, self).__init__()
@@ -132,7 +132,7 @@ class TransGeneratorFeature(nn.Module):
         self.ID2TOKEN = id_to_token_mol(self.mol_tokens)
         
         self.TOKEN2ID = token_to_id_mol(self.data_name, self.string_type)
-        self.learn_pos = learn_pos
+        self.pe = pe
         self.abs_pos = abs_pos
         self.max_len = max_len
         self.bw = bw
@@ -141,8 +141,8 @@ class TransGeneratorFeature(nn.Module):
         if self.abs_pos:
             self.positional_encoding = AbsolutePositionalEncoding(emb_size)
         
-        self.token_embedding_layer_feature = TokenEmbeddingFeature(len(self.mol_tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
-        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.learn_pos, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
+        self.token_embedding_layer_feature = TokenEmbeddingFeature(len(self.mol_tokens), emb_size, self.pe, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
+        self.token_embedding_layer = TokenEmbedding(len(self.tokens), emb_size, self.pe, self.max_len, self.string_type, self.data_name, self.bw, self.num_nodes)
         self.input_dropout = nn.Dropout(input_dropout)
         
         #

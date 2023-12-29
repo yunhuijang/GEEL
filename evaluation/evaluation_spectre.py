@@ -1,11 +1,12 @@
 import networkx as nx
-# import graph_tool.src.graph_tool.all as gt
+# import graph_tool.all as gt
 from scipy.stats import chi2
 import os
 import numpy as np
 import torch
 import concurrent.futures
 import copy
+from tqdm import tqdm
 
 # codes adapted from https://github.com/KarolisMart/SPECTRE
 def is_planar_graph(G):
@@ -114,15 +115,62 @@ def eval_fraction_unique(fake_graphs, precise=False):
 
     return frac_unique
 
+def eval_fraction_unique_ego(fake_graphs):
+    gen_hash = [nx.weisfeiler_lehman_graph_hash(graph) for graph in tqdm(fake_graphs)]
+    return len(set(gen_hash))/len(gen_hash)
+
+
 def eval_fraction_isomorphic(fake_graphs, train_graphs):
     count = 0
-    for fake_g in fake_graphs:
+    for fake_g in tqdm(fake_graphs):
         for train_g in train_graphs:
             if nx.faster_could_be_isomorphic(fake_g, train_g):
-                    if nx.is_isomorphic(fake_g, train_g):
-                        count += 1
-                        break
+                if nx.fast_could_be_isomorphic(fake_g, train_g):
+                    if nx.could_be_isomorphic(fake_g, train_g):
+                        if nx.is_isomorphic(fake_g, train_g):
+                            count += 1
+                            break
     return count / float(len(fake_graphs))
+
+def eval_fraction_isomorphic_ego(fake_graphs, train_graphs):
+    gen_hash = [nx.weisfeiler_lehman_graph_hash(graph) for graph in tqdm(fake_graphs)]
+    train_hash = [nx.weisfeiler_lehman_graph_hash(graph) for graph in tqdm(train_graphs)]
+    novel = 1-sum([h in set(gen_hash).intersection(train_hash) for h in gen_hash])/len(gen_hash)
+    return novel
+
+def eval_fraction_unique_non_isomorphic_valid_ego(fake_graphs, train_graphs, validity_func = (lambda x: True)):
+    count_valid = 0
+    count_isomorphic = 0
+    count_non_unique = 0
+    fake_evaluated = []
+    gen_hash = [nx.weisfeiler_lehman_graph_hash(graph) for graph in tqdm(fake_graphs)]
+    train_hash = [nx.weisfeiler_lehman_graph_hash(graph) for graph in tqdm(train_graphs)]
+    for fake_g in fake_graphs:
+        unique = True
+        
+        for fake_old in fake_evaluated:
+            if nx.faster_could_be_isomorphic(fake_g, fake_old):
+                    if nx.is_isomorphic(fake_g, fake_old):
+                        count_non_unique += 1
+                        unique = False
+                        break
+        if unique:
+            fake_evaluated.append(fake_g)
+            non_isomorphic = True
+            for train_g, train_h in zip(train_graphs, train_hash):
+                if nx.faster_could_be_isomorphic(fake_g, train_g):
+                    if train_h in set(gen_hash):
+                        count_isomorphic += 1
+                        non_isomorphic = False
+                        break
+            if non_isomorphic:
+                if validity_func(fake_g):
+                    count_valid += 1
+
+    frac_unique = (float(len(fake_graphs)) - count_non_unique) / float(len(fake_graphs)) # Fraction of distinct isomorphism classes in the fake graphs
+    frac_unique_non_isomorphic = (float(len(fake_graphs)) - count_non_unique - count_isomorphic) / float(len(fake_graphs)) # Fraction of distinct isomorphism classes in the fake graphs that are not in the training set
+    frac_unique_non_isomorphic_valid = count_valid / float(len(fake_graphs)) # Fraction of distinct isomorphism classes in the fake graphs that are not in the training set and are valid
+    return frac_unique, frac_unique_non_isomorphic, frac_unique_non_isomorphic_valid
 
 def eval_fraction_unique_non_isomorphic_valid(fake_graphs, train_graphs, validity_func = (lambda x: True)):
     count_valid = 0
