@@ -1,0 +1,149 @@
+{
+    "GDSS_ego": {
+        "node_num": 17,
+        "bw": {
+            "C-M": 15
+            }   
+    },
+    "GDSS_com": {
+        "node_num": 20,
+        "bw": {
+            "C-M": 8,
+            "BFS": 10,
+            "DFS": 19,
+            "random": 17
+            }
+    },
+     "GDSS_enz": {
+        "node_num": 125,
+        "bw": {
+            "C-M": 19,
+            "BFS": 21,
+            "DFS": 124,
+            "random": 112
+            }
+    },
+    "GDSS_grid":{
+        "node_num": 361,
+        "bw": {
+            "C-M": 19,
+            "BFS": 33,
+            "DFS": 360,
+            "random": 347
+            }
+    },
+    "planar":{
+        "node_num": 361,
+        "bw": {
+            "C-M": 26,
+            "BFS": 26, 
+            "DFS": 63,
+            "random": 63
+            }
+    },
+    "sbm": {
+        "node_num": 187,
+        "bw": {
+            "C-M": 111,
+            "BFS": 97,
+            "DFS": 186,
+            "random": 178
+            }
+    },
+    "proteins": {
+        "node_num": 500,
+        "bw": {
+            "C-M": 125
+            }
+    },
+    "lobster":{
+        "node_num": 98,
+        "bw": {
+            "C-M": 49,
+            "BFS": 48,
+            "DFS": 96,
+            "random": 95
+            }
+    },
+    "point":{
+        "node_num": 5037,
+        "bw": {
+            "C-M": 167
+            }
+    },
+    "ego":{
+        "node_num": 399,
+        "bw": {
+            "C-M": 241,
+            "BFS": 266,
+            "DFS": 398,
+            "random": 396 
+            }
+    },
+    "qm9":{
+        "node_num": 9,
+        "bw": {
+            "C-M": 8
+            }
+    },
+    "zinc":{
+        "node_num": 38,
+        "bw": {
+            "C-M": 35
+            }
+    },
+    "moses":{
+        "node_num": 31,
+        "bw": {
+            "C-M": 12
+            }
+    },
+    "guacamol":{
+        "node_num": 88,
+        "bw": {
+            "C-M": 12
+            }
+    },
+    "grid-500":{
+        "node_num": 676,
+        "bw": {
+            "C-M": 26
+        }
+    },
+    "grid-1000":{
+        "node_num": 1296,
+        "bw": {
+            "C-M": 36
+        }
+    },
+    "grid-2000":{
+        "node_num": 2401,
+        "bw": {
+            "C-M": 49
+        }
+    },
+    "grid-5000":{
+        "node_num": 5620,
+        "bw": {
+            "C-M": 75
+        }
+    },
+    "grid-10000":{
+        "node_num": 10816,
+        "bw": {
+            "C-M": 104
+        }
+    },
+    "grid-20000":{
+        "node_num": 21025,
+        "bw": {
+            "C-M": 145
+        }
+    },
+    "grid-50000":{
+        "node_num": 51984,
+        "bw": {
+            "C-M": 228
+        }
+    }
+}
