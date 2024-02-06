@@ -1,4 +1,4 @@
-# A Simple and Scalable Representation for Graph Generation
+# A Simple and Scalable Representation for Graph Generation (ICLR 2024)
 
 In this repository, we implement GEEL: Gap Encoded Edge List in the paper: A Simple and Scalable Representation for Graph Generation.
 
