@@ -21,7 +21,7 @@ from moses.metrics.metrics import get_all_metrics
 from data.tokens import map_tokens
 from data.mol_tokens import TOKENS_DICT_SEQ_MOL, TOKENS_DICT_FLATTEN_MOL, TOKENS_DICT_MOL
 from data.data_utils import load_graphs
-from data.mol_utils import mols_to_smiles, mols_to_nx, map_featured_samples_to_adjs, adj_x_to_graph_mol
+from data.mol_utils import mols_to_smiles, mols_to_nx, adj_x_to_graph_mol
 from evaluation.evaluation_spectre import eval_acc_grid_graph, eval_acc_planar_graph, eval_acc_sbm_graph
 
 def save_graph_list(log_folder_name, exp_name, gen_graph_list):

@@ -3,7 +3,6 @@ import os
 from os import listdir
 from os.path import isfile, join
 import torch
-# os.environ['CUDA_VISIBLE_DEVICES']="1"
 
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -11,9 +10,7 @@ import wandb
 from pytorch_lightning.loggers import WandbLogger
 from torch.nn.utils.rnn import pad_sequence
 from pytorch_lightning.callbacks import ModelCheckpoint, Timer
-from datetime import date
 
-from evaluation.evaluation import compute_sequence_cross_entropy
 from model.lstm_generator_feature_list import LSTMGeneratorFeatureList
 from trainer.train_generator import BaseGeneratorLightningModule
 
@@ -72,17 +69,7 @@ class LSTMGeneratorFeatureListLightningModule(BaseGeneratorLightningModule):
             collate_fn=lambda sequences: pad_sequence(sequences, batch_first=True, padding_value=0),
             num_workers=self.hparams.num_workers,
         )
-        
-    # def shared_step(self, batched_data):
-    #     loss, statistics = 0.0, dict()
-    #     logits = self.model(batched_data)
-    #     loss = compute_sequence_cross_entropy(logits, batched_data, self.hparams.dataset_name, self.hparams.string_type, self.hparams.order, self.hparams.is_token, self.hparams.vocab_size)
-    #     statistics["loss/total"] = loss
-    #     # statistics["acc/total"] = compute_sequence_accuracy(logits, batched_data, ignore_index=0)[0]
 
-    #     return loss, statistics
-
-    
     @staticmethod
     def add_args(parser):
        

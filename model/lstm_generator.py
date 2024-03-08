@@ -96,6 +96,9 @@ class TokenEmbedding(nn.Module):
         elif self.pe == 'no':
             pass
         
+        elif self.pe == 'rel':
+            pass
+        
         return x
 
 class LSTMGenerator(nn.Module):

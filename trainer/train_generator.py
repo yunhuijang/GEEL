@@ -4,19 +4,16 @@ from tqdm import tqdm
 import time
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
 import wandb
 from time import gmtime, strftime
 import os
 import networkx as nx
-#from moses.metrics.metrics import get_all_metrics
 
-# from model.trans_generator import TransGenerator
-from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, ComLargeDataset, MosesDataset, GuacamolDataset
+from data.dataset import EgoDataset, ComDataset, EnzDataset, GridDataset, GridSmallDataset, QM9Dataset, ZINCDataset, PlanarDataset, SBMDataset, ProteinsDataset, LobsterDataset, PointCloudDataset, EgoLargeDataset, MosesDataset, GuacamolDataset
 from data.dataset import Grid10000Dataset, Grid1000Dataset, Grid20000Dataset, Grid2000Dataset, Grid5000Dataset, Grid500Dataset
 from data.data_utils import adj_to_graph, load_graphs, map_samples_to_adjs, get_max_len
 from data.mol_utils import canonicalize_smiles
-from evaluation.evaluation import compute_sequence_accuracy, compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
+from evaluation.evaluation import compute_sequence_cross_entropy, save_graph_list, load_eval_settings, eval_graph_list, evaluate_molecules
 from plot import plot_graphs_list
 from data.tokens import untokenize
 from data.mol_tokens import untokenize_mol
@@ -34,7 +31,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         self.setup_datasets(hparams)
         self.setup_model(hparams)
         self.ts = strftime('%b%d-%H:%M:%S', gmtime())
-        # wandb.config['ts'] = self.ts
         
     def setup_datasets(self, hparams):
         self.string_type = hparams.string_type
@@ -57,7 +53,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'lobster': LobsterDataset,
             'point': PointCloudDataset,
             'ego': EgoLargeDataset,
-            'community': ComLargeDataset,
             'qm9': QM9Dataset,
             'zinc': ZINCDataset,
             'moses': MosesDataset,
@@ -68,10 +63,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
             'grid-5000': Grid5000Dataset, 
             'grid-10000': Grid10000Dataset,
             'grid-20000': Grid20000Dataset
-            # 'grid-50000': Grid50000Dataset, 
-            # 'grid-100000': GridDataset
         }.get(hparams.dataset_name)
-        # self.num_nodes = get_max_len(hparams.dataset_name)[1]
         if self.is_random_order:
             _, self.val_graphs, self.test_graphs = load_graphs(hparams.dataset_name, self.order, seed=self.replicate)
             
@@ -109,15 +101,6 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 self.test_smiles = f.readlines()
                 self.test_smiles = canonicalize_smiles(self.test_smiles)
             
-            
-        
-    # def setup_model(self, hparams):
-    #     self.model = TransGenerator(
-    #         emb_size=hparams.emb_size,
-    #         dropout=hparams.dropout,
-    #         dataset=hparams.dataset_name
-    #     )
-
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
             self.parameters(), 
@@ -162,7 +145,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         if not self.trainer.sanity_checking:
             if self.dataset_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             # self.string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-                weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, None, self.string_type)
+                weighted_adjs, xs = map_featured_samples_to_adjs(adj_lists, self.string_type)
                 if len(weighted_adjs) > 0:
                     evaluate_molecules(weighted_adjs, xs, self.dataset_name, self.test_graphs, self.device, self.test_smiles, self.train_smiles)
             else:
@@ -237,7 +220,7 @@ class BaseGeneratorLightningModule(pl.LightningModule):
                 sequences = self.model.decode(cur_num_samples, max_len=self.hparams.max_len, device=self.device)
                 generation_time = time.perf_counter() - t0
                 
-            if (self.string_type in ['adj_seq_rel_merge', 'adj_seq_merge', 'adj_list', 'adj_list_diff', 'adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
+            if (self.string_type in ['adj_list_diff_ni']) and (self.dataset_name in ['qm9', 'zinc']):
                 strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[0] for sequence in sequences.tolist()]
                 org_strings = [untokenize_mol(sequence, self.hparams.dataset_name, self.string_type, self.is_token, self.vocab_size)[1] for sequence in sequences.tolist()]
             else:
@@ -253,26 +236,3 @@ class BaseGeneratorLightningModule(pl.LightningModule):
         
 
         return parser
-
-
-if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser()
-    BaseGeneratorLightningModule.add_args(parser)
-
-
-    hparams = parser.parse_args()
-    wandb_logger = WandbLogger(name=f'{hparams.dataset_name}', project='k2g', 
-                               group=f'{hparams.group}', mode=f'{hparams.wandb_on}')
-    wandb.config.update(hparams)
-    
-    model = BaseGeneratorLightningModule(hparams)
-    wandb.watch(model)
-
-    trainer = pl.Trainer(
-        gpus=1,
-        default_root_dir="../resource/log/",
-        max_epochs=hparams.max_epochs,
-        logger=wandb_logger
-    )
-    trainer.fit(model)

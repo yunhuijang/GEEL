@@ -5,8 +5,8 @@ import torch
 import numpy as np
 import re
 
-from data.data_utils import seq_to_adj, seq_rel_to_adj, seq_to_adj_list, seq_rel_to_adj_list, adj_list_diff_to_adj_list, adj_list_diff_ni_to_adj_list
-from data.mol_tokens import NODE_TYPE_DICT, BOND_TYPE_DICT, ATOMFEAT2TOKEN, TOKEN2ATOMFEAT
+from data.data_utils import adj_list_diff_ni_to_adj_list
+from data.mol_tokens import BOND_TYPE_DICT, ATOMFEAT2TOKEN, TOKEN2ATOMFEAT
 
 
 DATA_DIR = "resource"
@@ -37,8 +37,6 @@ def mols_to_nx(mols):
         G = nx.Graph()
 
         for atom in mol.GetAtoms():
-            # G.add_node(atom.GetIdx(),
-                    #    label=NODE_TYPE_DICT[atom.GetSymbol()])
             token = get_atom_token(atom)
             token_set.add(token)
             G.add_node(atom.GetIdx(), token=token)
@@ -50,25 +48,6 @@ def mols_to_nx(mols):
         nx_graphs.append(G)
         
     return nx_graphs, token_set
-
-def check_adj_validity_mol(adj):
-    if adj.size == 0:
-        return None
-    non_padded_index = max(max(np.argwhere(adj.any(axis=0)))[0], max(np.argwhere(adj.any(axis=1)))[0])+1
-    x = adj.diagonal()[:non_padded_index]
-    # check if diagonal elements are all node types and all diagonal elements are full / not proper bond type
-    if len([atom for atom in x if atom in NODE_TYPE_DICT.values()]) == non_padded_index:
-        # not proper bond type
-        check_bond_adj = adj.copy()
-        np.fill_diagonal(check_bond_adj, 0)
-        bond_type_set = set(check_bond_adj.flatten())
-        bond_type_set.remove(0)
-        if len([bt for bt in bond_type_set if bt not in BOND_TYPE_DICT.values()]) == 0:
-            return adj
-        else:
-            return None
-    else:
-        return None
 
 ATOM_VALENCY = {'C': 4, 'N': 3, 'O': 2, 'F': 1, 'P': 3, 'S': 2, 'Cl': 1, 'Br': 1, 'I': 1, 'B': 3, 'Se': 6, 'Si': 4}
 
@@ -180,41 +159,8 @@ def fix_symmetry_mol(weighted_adj):
     sym_adj[range(len(sym_adj)), range(len(sym_adj))] = sym_adj.diagonal()/2
     return sym_adj
 
-def check_adj_feature_seq_size(adj_list, feature_list):
-    # check the validity with the length of adj_seq and feature_seq
-    if len(adj_list) + 1 == len(feature_list):
-        return True
-    else:
-        return False
-
-def check_adj_feature_seq_validity(adj_seq, string_type):
-    if len(adj_seq) == 0:
-        return False
-    if adj_seq[0] != 0:
-        return False
-    if string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-        # remove the first node (same as adj_seq / adj_seq_rel)
-        adj_seq = adj_seq[1:]
-        if len(adj_seq) == 0:
-            return False
-        if adj_seq[0] != 0:
-            return False
-    if string_type in ['adj_seq_merge', 'adj_seq']:
-        if len(seq_to_adj(adj_seq)) == 0:
-            return False
-    if string_type in ['adj_seq_rel_merge', 'adj_seq_rel']:
-        if len(seq_rel_to_adj(adj_seq)) == 0:
-            return False
-    return True
-
-def get_element_list_from_tuple(list_of_tuples, elem_num=0):
-    return [tup[elem_num] for tup in list_of_tuples]
-
 def get_edge_from_adj_list(sample):
     return [elem for elem in sample if type(elem) is tuple]
-
-def get_feature_from_adj_list(sample):
-    return [elem for elem in sample if type(elem) is not tuple]
 
 def get_feature_from_adj_list_diff_ni(sample):
     # filter out self loop bond features
@@ -230,56 +176,24 @@ def check_diff_ni_validity_mol(sample):
     else:
         return True
 
-def map_featured_samples_to_adjs(samples, samples_feature, string_type):
+def map_featured_samples_to_adjs(samples, string_type='adj_list_diff_ni'):
+    if string_type != 'adj_list_diff_ni':
+        raise ValueError('String type must be adj_list_diff_ni for molecules')
     # return weighted adjacency matrix (edge features) and node features
-    if string_type in ['adj_seq', 'adj_seq_rel']:
-        valid_adj_feature_seqs = [(adj_list, feature_list) for adj_list, feature_list in zip(samples, samples_feature)
-                                  if (check_adj_feature_seq_size(adj_list, feature_list)) and check_adj_feature_seq_validity(adj_list, string_type)]
-        adj_seqs = [adj_feature_list[0] for adj_feature_list in valid_adj_feature_seqs]
-        feature_seqs = [adj_feature_list[1] for adj_feature_list in valid_adj_feature_seqs]
-    elif string_type in ['adj_seq_merge', 'adj_seq_rel_merge']:
-        valid_adj_feature_seqs = [sample for sample in samples if check_adj_feature_seq_validity(get_element_list_from_tuple(sample, 0), string_type)]
-        adj_seqs = [get_element_list_from_tuple(adj_feature_list, 0)[1:] for adj_feature_list in valid_adj_feature_seqs]
-        feature_seqs = [get_element_list_from_tuple(adj_feature_list, 1) for adj_feature_list in valid_adj_feature_seqs]
-    elif string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni']:
-        samples = [sample for sample in samples if len(sample)>0]
-        if string_type == 'adj_list_diff_ni':
-            samples = [sample for sample in samples if check_diff_ni_validity_mol(sample)]
-            feature_seqs = [get_feature_from_adj_list_diff_ni(sample) for sample in samples]
-        else:
-            feature_seqs = [get_feature_from_adj_list(sample) for sample in samples]
-        adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
-            
-        if string_type == 'adj_list_diff':
-            adj_lists = [adj_list_diff_to_adj_list(adj_list) for adj_list in adj_lists]
-        elif string_type == 'adj_list_diff_ni':
-            adj_lists = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in adj_lists]
-    if 'adj_seq' in string_type:
-        if string_type in ['adj_seq', 'adj_seq_merge']:
-            adj_lists = [seq_to_adj_list(seq) for seq in adj_seqs if len(seq_to_adj(seq))>0]
-        elif string_type in ['adj_seq_rel', 'adj_seq_rel_merge']:
-            adj_lists = [seq_rel_to_adj_list(seq_rel) for seq_rel in adj_seqs if len(seq_rel_to_adj(seq_rel))>0]
-        # map node features
-        node_indices = [np.where(np.array(adj_seq)==0)[0] for adj_seq in adj_seqs]
-        xs = [[feature_seq[0]] for feature_seq in feature_seqs]
-        for x, feature_seq, node_index in zip(xs, feature_seqs, node_indices):
-            x.extend([feature_seq[i+1] for i in node_index])
-        # map weighted adjacency matrices
-        edge_indices = [np.where(np.array(adj_seq)!=0)[0] for adj_seq in adj_seqs]
-        edge_features = [[feature_seq[i+1] for i in edge_index] for feature_seq, edge_index in zip(feature_seqs, edge_indices)]
-    else:
-        xs = [[elem for elem in feature_seq if elem in TOKEN2ATOMFEAT.keys()] for feature_seq in feature_seqs]
-        if string_type == 'adj_list_diff_ni':
-            edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
-        else:
-            edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
+    samples = [sample for sample in samples if len(sample)>0]
+    samples = [sample for sample in samples if check_diff_ni_validity_mol(sample)]
+    feature_seqs = [get_feature_from_adj_list_diff_ni(sample) for sample in samples]
+
+    adj_lists = [get_edge_from_adj_list(sample) for sample in samples]
         
+    adj_lists = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in adj_lists]
+    xs = [[elem for elem in feature_seq if elem in TOKEN2ATOMFEAT.keys()] for feature_seq in feature_seqs]
+    edge_features = [[elem for elem in feature_seq if elem in bond_decoder.keys()] for feature_seq in feature_seqs]
+
     featured_adj_lists = [map_featured_adj_list(adj_list, edge_feature) for adj_list, edge_feature in zip(adj_lists, edge_features)]
     weighted_adjs = [featured_adj_list_to_adj(featured_adj_list) for featured_adj_list in featured_adj_lists]
-    if string_type == 'adj_list_diff_ni':
-        for adj in weighted_adjs:
-            np.fill_diagonal(adj, 0)
-        # weighted_adjs = [np.fill_diagonal(adj, 0) for adj in weighted_adjs]
+    for adj in weighted_adjs:
+        np.fill_diagonal(adj, 0)
     final_weighted_adjs = [weighted_adj for weighted_adj, x in zip(weighted_adjs, xs) if (len(weighted_adj) == len(x)) and (len(weighted_adj)>1)]
     final_xs = [x for weighted_adj, x in zip(weighted_adjs, xs) if (len(weighted_adj) == len(x)) and (len(weighted_adj)>1)]
 

@@ -11,7 +11,7 @@ import math
 # from torch_geometric.datasets import MNISTSuperpixels
 from torch_geometric.utils import to_networkx
 from scipy.sparse import lil_matrix, vstack
-import sentencepiece as spm
+# import sentencepiece as spm
 import sys
 
 from data.orderings import ORDER_FUNCS, order_graphs
@@ -299,6 +299,33 @@ def n_community(c_sizes, p_inter=0.05):
                 G.add_edge(nodes1[0], nodes2[0])
     return G
 
+def generate_lobster_graphs(p1=0.7, p2=0.7, min_node=10, max_node=100, mean_node=80, max_edge=0, num_graphs=100):
+    graphs = []
+    count = 0
+    num_graphs = 100
+
+    seed_tmp = 1234
+    while count < num_graphs:
+        G = nx.random_lobster(mean_node, p1, p2, seed=seed_tmp)
+        if len(G.nodes()) >= min_node and len(G.nodes()) <= max_node:
+            graphs.append(G)
+            if G.number_of_edges() > max_edge:
+                max_edge = G.number_of_edges()
+            count += 1
+        seed_tmp += 1
+    return graphs
+
+def get_ego_graphs():
+    _, _, G = load_ego_data(dataset='citeseer')
+    G = max([G.subgraph(c) for c in nx.connected_components(G)], key=len)
+    G = nx.convert_node_labels_to_integers(G)
+    graphs = []
+    for i in range(G.number_of_nodes()):
+        G_ego = nx.ego_graph(G, i, radius=3)
+        if G_ego.number_of_nodes() >= 50 and (G_ego.number_of_nodes() <= 400):
+            graphs.append(G_ego)
+    return graphs
+
 def load_graphs(data_name, order='C-M', seed=0, is_train=False):
     raw_dir = f"resource/{data_name}"
     if data_name in ['GDSS_ego', 'GDSS_com', 'GDSS_enz', 'GDSS_grid', 
@@ -308,50 +335,15 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
     elif data_name == 'proteins':
         adjs = load_proteins_data(DATA_DIR)
         graphs = [adj_to_graph(adj.numpy()) for adj in adjs]
-    elif data_name == 'mnist':
-        train_graphs, val_graphs, test_graphs = mnist_to_graphs()
     # Codes adpadted from https://github.com/lrjconan/GRAN
     elif data_name == 'lobster':
-        graphs = []
-        p1 = 0.7
-        p2 = 0.7
-        count = 0
-        min_node = 10
-        max_node = 100
-        max_edge = 0
-        mean_node = 80
-        num_graphs = 100
-
-        seed_tmp = 1234
-        while count < num_graphs:
-            G = nx.random_lobster(mean_node, p1, p2, seed=seed_tmp)
-            if len(G.nodes()) >= min_node and len(G.nodes()) <= max_node:
-                graphs.append(G)
-                if G.number_of_edges() > max_edge:
-                    max_edge = G.number_of_edges()
-                count += 1
-            seed_tmp += 1
+        graphs = generate_lobster_graphs()
     elif data_name == 'point':
         graphs = load_point_data(DATA_DIR, min_num_nodes=0, max_num_nodes=10000, 
                                   node_attributes=False, graph_labels=True)
     # Codes adpated from https://github.com/JiaxuanYou/graph-generation
     elif data_name == 'ego':
-        _, _, G = load_ego_data(dataset='citeseer')
-        G = max([G.subgraph(c) for c in nx.connected_components(G)], key=len)
-        G = nx.convert_node_labels_to_integers(G)
-        graphs = []
-        for i in range(G.number_of_nodes()):
-            G_ego = nx.ego_graph(G, i, radius=3)
-            if G_ego.number_of_nodes() >= 50 and (G_ego.number_of_nodes() <= 400):
-                graphs.append(G_ego)
-    elif data_name == 'community':
-        graphs = []
-        num_communities = 2
-        print('Creating dataset with ', num_communities, ' communities')
-        for k in range(500):
-            np.random.seed(1234+k)
-            c_sizes = np.random.choice(np.arange(30, 81), num_communities)
-            graphs.append(n_community(c_sizes, p_inter=0.05))
+        graphs = get_ego_graphs()
     elif data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
         graphs_list = []
         for split in ['train', 'val', 'test']:
@@ -372,11 +364,7 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
         num_rep = 1
         # order graphs
         order_func = ORDER_FUNCS[order]
-        
-        if data_name == 'mnist':
-            total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
-            new_ordered_graphs = [to_networkx(ordered_graph.to_mnist_data()) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
-        elif data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
+        if data_name in ['qm9', 'zinc', 'moses', 'guacamol']:
             total_ordered_graphs = order_graphs(graphs, num_repetitions=num_rep, order_func=order_func, is_mol=True, seed=seed)
             new_ordered_graphs = [to_networkx(ordered_graph.to_mol_data(), node_attrs=['x'], edge_attrs=['edge_attr'], to_undirected=True) for ordered_graph in tqdm(total_ordered_graphs, 'Map new ordered graphs')]
         else:
@@ -385,29 +373,12 @@ def load_graphs(data_name, order='C-M', seed=0, is_train=False):
         graph_list.append(new_ordered_graphs)
         if is_train:
             # return only train graphs
-            torch.save(new_ordered_graphs, f'ordered_dataset/{data_name}/{seed%200}.pt')
+            torch.save(new_ordered_graphs, f'ordered_dataset/{data_name}/{seed}.pt')
             return new_ordered_graphs
     
     return graph_list
 
-def mnist_to_graphs():
-    train_val_graphs = MNISTSuperpixels(root='resource', train=True)[:80]
-    val_raw_data = train_val_graphs[:int(len(train_val_graphs)*0.2)]
-    train_raw_data = train_val_graphs[int(len(train_val_graphs)*0.2):]
-    test_raw_data = MNISTSuperpixels(root='resource', train=False)[:20]
-    
-    graphs = []
-    for raw_data in [train_raw_data, val_raw_data, test_raw_data]:
-        node_attrs = ['x', 'pos']
-        graph_attrs = ['y']
-        networkx_graphs = [to_networkx(data, node_attrs=node_attrs, graph_attrs=graph_attrs,
-                                       to_undirected=True) for data in raw_data]
-        graphs.append(networkx_graphs)
-        
-    return graphs
-
 def get_max_len(graphs_list):
-    # graphs_list = load_graphs(data_name)
     max_len_edge = 0
     max_len_node = 0
     min_len_node = 1000
@@ -507,54 +478,16 @@ def seq_rel_to_adj(seq):
     else:
         return ''
 
-def blank_seq_to_seq(seq):
-    string = ""
-    for element in seq:
-        if element == " ":
-            string += "0"
-        else:
-            string += element
-    return [eval(elem) for elem in list(string)]
-
 def map_samples_to_adjs(samples, string_type, is_token):
     
     filtered_samples = [sample for sample in samples if (len(sample) > 0) and ('<unk>' not in sample)]
-    if is_token or string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
-        if string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
-            filtered_samples = [[element.replace('▁', ' ').replace('<s>', '').replace('</s>', '') for element in sample] for sample in filtered_samples]
-            filtered_samples = ["".join(sample) for sample in filtered_samples]
-            # filtered_samples = [' '.join(sample) for sample in filtered_samples]
-        else:
-            filtered_samples = [''.join(sample) for sample in filtered_samples]
-            filtered_samples = [sample.replace('▁', '').replace('<s>', '').replace('</s>', '') for sample in filtered_samples]
-            filtered_samples = [[int(char) for char in sample] for sample in filtered_samples]
-            filtered_samples = [sample for sample in filtered_samples if (len(sample) > 0)]
-    
-    if string_type in ['adj_seq_blank', 'adj_seq_rel_blank']:
-        filtered_samples = [blank_seq_to_seq(sample) for sample in filtered_samples]
-    
+
     # map adj_list_diff to adj_list
-    if string_type == 'adj_list_diff':
-        filtered_samples = [adj_list_diff_to_adj_list(adj_list) for adj_list in filtered_samples]
-    elif string_type in ['adj_list_diff_ni', 'adj_list_diff_ni_rel']:
+    if string_type in ['adj_list_diff_ni', 'adj_list_diff_ni_rel']:
         filtered_samples = [adj_list_diff_ni_to_adj_list(adj_list) for adj_list in filtered_samples]
-    # map adjacecny matrices from samples
-    if string_type in ['adj_list', 'adj_list_diff', 'adj_list_diff_ni', 'adj_list_diff_ni_rel']:
+        # map adjacecny matrices from samples
         adjs = [torch.tensor(adj_list_to_adj(adj_list)) for adj_list in filtered_samples if check_adj_list_validity(adj_list)]
-    elif string_type == 'adj_flatten':
-        adjs = [adj_flatten_to_adj(adj_flatten) for adj_flatten in filtered_samples if is_square(adj_flatten)]
-        adjs = [adj for adj in adjs if is_symmetric(adj)]
-    elif string_type == 'adj_flatten_sym':
-        lower_adjs = [fill_lower_diag(adj_flatten) for adj_flatten in filtered_samples if is_triangular(adj_flatten)]
-        adjs = [fix_symmetry(torch.tensor(adj)) for adj in lower_adjs]
-    elif string_type in ['adj_seq', 'adj_seq_blank']:
-        filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
-        adjs = [seq_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_to_adj(seq_rel))>0]
-    elif string_type in ['adj_seq_rel', 'adj_seq_rel_blank']:
-        filtered_samples = [sample for sample in filtered_samples if sample[0] == 0]
-        adjs = [seq_rel_to_adj(seq_rel) for seq_rel in filtered_samples if len(seq_rel_to_adj(seq_rel))>0]
-    elif string_type == 'bwr':
-        adjs = [unflatten_forward(torch.tensor(flatten)) for flatten in filtered_samples]
+    
     else:
         assert False, 'No string type'
         
@@ -580,115 +513,12 @@ def unflatten_forward(band_flat_A: torch.Tensor) -> torch.Tensor:
     out = out + out.T
     return out
 
-def unflatten_forward(band_flat_A: torch.Tensor) -> torch.Tensor:
-    n, bw = band_flat_A.shape[:2]
-    out = torch.zeros((n, n) + band_flat_A.shape[2:], dtype=band_flat_A.dtype, device=band_flat_A.device)
-    for i in range(n):
-        append_len = min(bw, n - i - 1)
-        if append_len > 0:
-            out[i, i + 1: i + 1 + append_len] = band_flat_A[i, :append_len]
-    out = out + out.T
-    return out
-
-def map_string_adj_seq_rel(adj_list):
-    string = "0"
-    prev_src_node = 1
-    adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
-    cur_tar_node = adj_list[0][1]
-    for src_node, tar_node in adj_list:
-        if prev_src_node != src_node:
-            string += "0"
-            diff = src_node - tar_node
-        else:
-            diff = cur_tar_node - tar_node
-        if diff > 0:
-            string += str(diff)
-        prev_src_node = src_node
-        cur_tar_node = tar_node
-    return string
-
-def map_string_adj_seq_rel_blank(adj_list):
-    string = " "
-    prev_src_node = 1
-    adj_list = sorted(adj_list, key = lambda x: (x[0], -x[1]))
-    cur_tar_node = adj_list[0][1]
-    for src_node, tar_node in adj_list:
-        if prev_src_node != src_node:
-            string += " "
-            diff = src_node - tar_node
-        else:
-            diff = cur_tar_node - tar_node
-        if diff > 0:
-            string += str(diff)
-        
-        prev_src_node = src_node
-        cur_tar_node = tar_node
-    return string
-
-def map_string_adj_seq(adj_list):
-    string = "0"
-    prev_src_node = 1
-    for src_node, tar_node in adj_list:
-        if prev_src_node != src_node:
-            string += "0"
-        diff = src_node - tar_node
-        string += str(diff)
-        prev_src_node = src_node
-    return string
-
-def map_string_adj_seq_blank(adj_list):
-    string = " "
-    prev_src_node = 1
-    for src_node, tar_node in adj_list:
-        if prev_src_node != src_node:
-            string += " "
-        diff = src_node - tar_node
-        string += str(diff)
-        prev_src_node = src_node
-    return string
-
 def map_string_flat_sym(adj):
     np_adj = adj.toarray()
     lower_diagonal = np_adj[np.tril_indices(len(np_adj))]
     return "".join([str(int(elem)) for elem in lower_diagonal.tolist()])
 
-def train_data_to_string(data_name='GDSS_com', string_type='adj_seq_rel', order='C-M'):
-    '''
-    Generate string representation for tokenization
-    '''
-    graphs, _, _ = load_graphs(data_name, order)
-    adjs = [nx.adjacency_matrix(graph) for graph in graphs]
-    adj_lists = [adj_to_adj_list(adj) for adj in adjs]
-
-    if string_type == 'adj_seq_rel':
-        strings = [map_string_adj_seq_rel(adj_list) for adj_list in adj_lists]
-
-    elif string_type == 'adj_seq':
-        strings = [map_string_adj_seq(adj_list) for adj_list in adj_lists]
-        
-    elif string_type == 'adj_flatten':
-        strings = ["".join([str(int(elem)) for elem in torch.flatten(torch.tensor(adj.todense())).tolist()]) for adj in adjs]
-        
-    elif string_type == 'adj_flatten_sym':
-        strings = [map_string_flat_sym(adj) for adj in adjs]
-        
-    elif string_type == 'adj_seq_rel_blank':
-        strings = [map_string_adj_seq_rel_blank(adj_list) for adj_list in adj_lists]
-        
-    elif string_type == 'adj_seq_blank':
-        strings = [map_string_adj_seq_blank(adj_list) for adj_list in adj_lists]
-        
-    print(max([len(string) for string in strings]))
-    with open(f'./samples/string/{data_name}/{string_type}.txt', 'w') as f :
-        for string in strings:
-            f.write("%s\n" %string)
-    
-def generate_vocabulary(dataset_name, string_type, vocab_size):
-    train_data_to_string(dataset_name, string_type)
-    spm.SentencePieceTrainer.Train(f"--input=samples/string/{dataset_name}/{string_type}.txt --model_prefix=resource/tokenizer/{dataset_name}/{string_type}_{vocab_size} --vocab_size={vocab_size} --model_type=bpe --character_coverage=1.0 --max_sentence_length=160000 --input_sentence_size=10000000")
-
-
-# Codes adapted from BiGG
+# Codes adapted from BiGG (for ablation study including large grid graph))
 def get_rand_grid(n_nodes, n_d=5):
     graphs = []
     for i in range(n_nodes - n_d, n_nodes + n_d):
@@ -757,11 +587,4 @@ def create_graphs(graph_type, num_node):
     with open(f'resource/grid-{num_node}.pkl', 'wb') as f:
         pickle.dump(graphs, f)
     
-    return graphs
-
-def get_er_graph(n_nodes, p):
-    n_min = n_nodes - 5
-    n_max = n_nodes + 10
-
-    graphs = [gen_connected('erdos_renyi', n_min, n_max, er_p=p) for _ in tqdm(range(30))]
     return graphs
