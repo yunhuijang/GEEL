@@ -1,0 +1,13 @@
+python trainer/train_lstm_generator_feature_list.py \
+--order C-M \
+--dataset_name qm9 \
+--max_epochs 2000 \
+--check_sample_every_n_epoch 200 \
+--replicate 0 \
+--max_len 45 \
+--wandb_on online \
+--string_type adj_list_diff_ni \
+--lr 0.0001 \
+--batch_size 1024 \
+--num_samples 10000 \
+--run_id iupdgobu

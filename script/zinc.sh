@@ -1,0 +1,13 @@
+python trainer/train_lstm_generator_feature_list.py \
+--order C-M \
+--dataset_name zinc \
+--max_epochs 2000 \
+--check_sample_every_n_epoch 200 \
+--replicate 0 \
+--max_len 166 \
+--wandb_on online \
+--string_type adj_list_diff_ni \
+--lr 0.0005 \
+--batch_size 1024 \
+--num_samples 10000 \
+--sample_batch_size 1000

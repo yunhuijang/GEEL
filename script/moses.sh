@@ -1,0 +1,12 @@
+python trainer/train_trans_generator_feature_list.py \
+--order C-M \
+--dataset_name moses \
+--max_epochs 1000 \
+--check_sample_every_n_epoch 10 \
+--replicate 0 \
+--max_len 53 \
+--wandb_on disabled \
+--string_type adj_list_diff_ni \
+--lr 0.0005 \
+--batch_size 1024 \
+--num_samples 100
